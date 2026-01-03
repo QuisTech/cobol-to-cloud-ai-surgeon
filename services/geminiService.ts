@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, ModernizedCode, DeploymentConfig, VisionAnalysisResult, VideoAnalysisResult, AudioUploadResult } from "../types";
 import { SYSTEM_PROMPT } from "../constants";
@@ -159,7 +160,12 @@ export const analyzeCobolCode = async (code: string): Promise<AnalysisResult> =>
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: { 
-      parts: [{ text: `Analyze the following COBOL code for bugs and logic. Output JSON.\n\nCOBOL Code:\n${code}` }] 
+      parts: [{ text: `Analyze the following COBOL code for bugs and logic. 
+In your analysis, pay special attention to legacy patterns that are dangerous when moved to a cloud environment (e.g., fixed-length array overflows, manual file offsets, non-thread-safe global storage, tight coupling with hardware features). 
+
+Return a "reasoning" summary explaining WHY the identified bugs are critical specifically for cloud migration.
+
+Output JSON.\n\nCOBOL Code:\n${code}` }] 
     },
     config: {
       systemInstruction: SYSTEM_PROMPT,
@@ -183,9 +189,10 @@ export const analyzeCobolCode = async (code: string): Promise<AnalysisResult> =>
           },
           complexityScore: { type: Type.NUMBER },
           logicFlow: { type: Type.STRING },
-          dependencies: { type: Type.ARRAY, items: { type: Type.STRING } }
+          dependencies: { type: Type.ARRAY, items: { type: Type.STRING } },
+          reasoning: { type: Type.STRING }
         },
-        required: ['bugs', 'complexityScore', 'logicFlow', 'dependencies']
+        required: ['bugs', 'complexityScore', 'logicFlow', 'dependencies', 'reasoning']
       }
     }
   });

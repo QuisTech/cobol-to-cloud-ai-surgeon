@@ -40,10 +40,10 @@ export interface AudioInterviewResult {
 export interface AudioUploadResult {
   fileName: string;
   transcription: string;
-  requirements: string[];
-  painPoints: string[];
-  userStories: string[];
-  businessRules: string[];
+  requirements: ["req1", "req2"],
+  painPoints: ["pain1", "pain2"],
+  userStories: ["story1", "story2"],
+  businessRules: ["rule1", "rule2"]
 }
 
 export interface AnalysisResult {
@@ -56,6 +56,7 @@ export interface AnalysisResult {
   complexityScore: number;
   logicFlow: string;
   dependencies: string[];
+  reasoning?: string;
 }
 
 export interface ModernizedCode {
