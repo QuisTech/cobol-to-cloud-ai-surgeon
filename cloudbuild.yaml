@@ -1,0 +1,26 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/cobol-to-cloud-migration-ai:$COMMIT_SHA', '.']
+  
+  # Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/cobol-to-cloud-migration-ai:$COMMIT_SHA']
+  
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+    - 'run'
+    - 'deploy'
+    - 'cobol-to-cloud-migration-ai'
+    - '--image=gcr.io/$PROJECT_ID/cobol-to-cloud-migration-ai:$COMMIT_SHA'
+    - '--region=us-west1'
+    - '--allow-unauthenticated'
+    - '--platform=managed'
+
+images:
+  - 'gcr.io/$PROJECT_ID/cobol-to-cloud-migration-ai:$COMMIT_SHA'
