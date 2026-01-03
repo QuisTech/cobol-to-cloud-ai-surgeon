@@ -1,7 +1,15 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, ModernizedCode, DeploymentConfig, VisionAnalysisResult, VideoAnalysisResult, AudioUploadResult } from "../types";
 import { SYSTEM_PROMPT } from "../constants";
+
+/**
+ * Robustly strips markdown code blocks from model responses before parsing.
+ * Essential for preventing syntax errors in automated AI pipelines.
+ */
+const cleanJsonOutput = (text: string): string => {
+  if (!text) return "";
+  return text.replace(/```json\n?|```/g, "").trim();
+};
 
 export const analyzeUploadedAudio = async (base64Audio: string, mimeType: string, fileName: string): Promise<AudioUploadResult> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -12,20 +20,13 @@ export const analyzeUploadedAudio = async (base64Audio: string, mimeType: string
         {
           text: `You are a specialist Business Analyst. Analyze this recorded user interview about a legacy COBOL system migration. 
 Perform the following:
-1. Provide a verbatim transcription of the key moments.
-2. Extract functional and non-functional requirements.
-3. Identify pain points mentioned by users regarding the legacy system.
-4. Generate Agile User Stories (As a... I want... So that...).
-5. List any specific business rules or calculations described.
+1. Provide a verbatim transcription.
+2. Extract functional requirements.
+3. Identify pain points.
+4. Generate Agile User Stories.
+5. List specific business rules.
 
-Return the result as a strict JSON object:
-{
-  "transcription": "...",
-  "requirements": ["req1", "req2"],
-  "painPoints": ["pain1", "pain2"],
-  "userStories": ["story1", "story2"],
-  "businessRules": ["rule1", "rule2"]
-}`
+Return the result as a strict JSON object.`
         },
         {
           inlineData: {
@@ -52,8 +53,8 @@ Return the result as a strict JSON object:
   });
 
   const text = response.text;
-  if (!text) throw new Error("Audio analysis failed to return data.");
-  return { ...JSON.parse(text), fileName };
+  if (!text) throw new Error("Neural output was empty.");
+  return { ...JSON.parse(cleanJsonOutput(text)), fileName };
 };
 
 export const analyzeSystemVideo = async (videoBase64: string, mimeType: string): Promise<VideoAnalysisResult> => {
@@ -63,19 +64,7 @@ export const analyzeSystemVideo = async (videoBase64: string, mimeType: string):
     contents: {
       parts: [
         {
-          text: `Observe this legacy system walkthrough video. Act as a systems analyst and extract:
-1. Navigation Patterns: How do users move through the legacy UI?
-2. UI Components: Identify key screen elements and data tables.
-3. Observed Business Rules: Any logic inferred from screen transitions or error messages.
-4. Performance Characteristics: Latency or batch-processing indicators visible.
-
-Return JSON in this format:
-{
-  "navigationPatterns": ["list of strings"],
-  "uiComponents": ["list of strings"],
-  "observedBusinessRules": "summary string",
-  "performanceNotes": "summary string"
-}`
+          text: `Observe this legacy system walkthrough video. Act as a systems analyst and extract logic. Output JSON.`
         },
         {
           inlineData: {
@@ -101,8 +90,8 @@ Return JSON in this format:
   });
 
   const text = response.text;
-  if (!text) throw new Error("Video analysis failed to return data.");
-  return JSON.parse(text);
+  if (!text) throw new Error("Neural output was empty.");
+  return JSON.parse(cleanJsonOutput(text));
 };
 
 export const analyzeCobolScreenshot = async (imageDataUrl: string): Promise<VisionAnalysisResult> => {
@@ -114,7 +103,7 @@ export const analyzeCobolScreenshot = async (imageDataUrl: string): Promise<Visi
     contents: {
       parts: [
         {
-          text: `Analyze this mainframe screenshot and extract fields, business rules, and COBOL structures. Output JSON.`
+          text: `Analyze this mainframe screenshot and extract fields. Output JSON.`
         },
         {
           inlineData: {
@@ -151,8 +140,8 @@ export const analyzeCobolScreenshot = async (imageDataUrl: string): Promise<Visi
   });
 
   const text = response.text;
-  if (!text) throw new Error("Vision analysis failed.");
-  return JSON.parse(text);
+  if (!text) throw new Error("Neural output was empty.");
+  return JSON.parse(cleanJsonOutput(text));
 };
 
 export const analyzeCobolCode = async (code: string): Promise<AnalysisResult> => {
@@ -160,12 +149,7 @@ export const analyzeCobolCode = async (code: string): Promise<AnalysisResult> =>
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: { 
-      parts: [{ text: `Analyze the following COBOL code for bugs and logic. 
-In your analysis, pay special attention to legacy patterns that are dangerous when moved to a cloud environment (e.g., fixed-length array overflows, manual file offsets, non-thread-safe global storage, tight coupling with hardware features). 
-
-Return a "reasoning" summary explaining WHY the identified bugs are critical specifically for cloud migration.
-
-Output JSON.\n\nCOBOL Code:\n${code}` }] 
+      parts: [{ text: `Analyze the following COBOL code for bugs and logic. Output JSON.\n\nCOBOL Code:\n${code}` }] 
     },
     config: {
       systemInstruction: SYSTEM_PROMPT,
@@ -198,8 +182,8 @@ Output JSON.\n\nCOBOL Code:\n${code}` }]
   });
 
   const text = response.text;
-  if (!text) throw new Error("Analysis failed.");
-  return JSON.parse(text);
+  if (!text) throw new Error("Neural output was empty.");
+  return JSON.parse(cleanJsonOutput(text));
 };
 
 export const transformToSpringBoot = async (code: string, analysis: AnalysisResult): Promise<ModernizedCode> => {
@@ -235,8 +219,8 @@ export const transformToSpringBoot = async (code: string, analysis: AnalysisResu
   });
 
   const text = response.text;
-  if (!text) throw new Error("Transformation failed.");
-  return JSON.parse(text);
+  if (!text) throw new Error("Neural output was empty.");
+  return JSON.parse(cleanJsonOutput(text));
 };
 
 export const generateCloudConfig = async (modernizedCode: ModernizedCode): Promise<DeploymentConfig> => {
@@ -244,7 +228,7 @@ export const generateCloudConfig = async (modernizedCode: ModernizedCode): Promi
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: { 
-      parts: [{ text: `Generate Docker/K8s for these files: ${modernizedCode.files.map(f => f.path).join(', ')}` }] 
+      parts: [{ text: `Generate Docker/K8s for these files. Output JSON.` }] 
     },
     config: {
       systemInstruction: SYSTEM_PROMPT,
@@ -262,6 +246,6 @@ export const generateCloudConfig = async (modernizedCode: ModernizedCode): Promi
   });
 
   const text = response.text;
-  if (!text) throw new Error("Cloud config failed.");
-  return JSON.parse(text);
+  if (!text) throw new Error("Neural output was empty.");
+  return JSON.parse(cleanJsonOutput(text));
 };

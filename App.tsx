@@ -57,7 +57,6 @@ const App: React.FC = () => {
     audioUploadResults: [],
   });
 
-  // Refs for file inputs to avoid overlay bugs
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -87,13 +86,29 @@ const App: React.FC = () => {
     setStatusText(msg);
   };
 
+  /**
+   * Comprehensive error handling for common cloud-native and API failure modes.
+   */
   const handleApiError = (err: any) => {
-    console.error('API Error:', err);
-    const errorMsg = err.message || '';
+    console.error('Migration Engine Failure:', err);
+    const errorMsg = err?.message || err?.toString() || '';
+    
+    // Case 1: Rate limiting or billing issues
     if (errorMsg.includes("quota") || errorMsg.includes("429")) {
-      return "Agent Quota Exhausted: Please use a paid Google Cloud project.";
+      return "Migration Capacity Exhausted: The neural pipeline is saturated. Switch to a paid Google Cloud project or wait for quota reset.";
     }
-    return errorMsg || 'Neural synthesis encountered an exception.';
+    
+    // Case 2: Nginx / Cloud Run Port issues (Internal Error 500)
+    if (errorMsg.includes("Internal error") || errorMsg.includes("500") || errorMsg.includes("nginx")) {
+      return "Neural Link Instability: The underlying infrastructure (Nginx/Cloud Run) is experiencing a port binding error or a transient model failure. Please refresh the session.";
+    }
+
+    // Case 3: Safety filters or content blocking
+    if (errorMsg.includes("safety") || errorMsg.includes("blocked")) {
+      return "Logic Shield Triggered: The migration agent refused to process this code block due to security or safety policy violations.";
+    }
+
+    return errorMsg || 'Neural synthesis encountered an unhandled exception in the logic core.';
   };
 
   const ensureApiKey = async () => {
@@ -142,7 +157,6 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, isProcessing: true, error: undefined }));
       addLog('Agent Phase: Logic extraction initiated (Gemini 3 Pro)...');
       const analysis = await analyzeCobolCode(state.cobolCode);
-      if (!analysis) throw new Error("Agent failed to synthesize logic graph.");
       setState(prev => ({ ...prev, analysisResults: analysis, isProcessing: false, step: 'ANALYSIS' }));
       addLog('Logic graph synchronized.');
     } catch (err: any) {
@@ -195,7 +209,7 @@ const App: React.FC = () => {
         results.push(res);
       }
       setState(prev => ({ ...prev, isProcessing: false, audioUploadResults: results }));
-      setPendingAudioFiles([]); // Clear staging after success
+      setPendingAudioFiles([]);
       addLog('Batch requirement synchronization complete.');
     } catch (err: any) {
       setState(prev => ({ ...prev, isProcessing: false, error: handleApiError(err) }));
@@ -311,7 +325,7 @@ const App: React.FC = () => {
             </div>
           </div>
           <button onClick={resetMigration} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-700 text-xs text-slate-300 hover:bg-slate-800 transition-colors">
-            <RefreshCw size={14} /> Reset
+            <RefreshCw size={14} /> System Restart
           </button>
         </div>
       </nav>
@@ -343,6 +357,9 @@ const App: React.FC = () => {
             <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 flex flex-col gap-4 text-red-400 mb-8 shadow-xl animate-in fade-in slide-in-from-top-4 border-l-4 border-l-red-500">
               <div className="flex items-center gap-3 font-bold text-lg"><AlertTriangle className="text-red-500" size={24} /> Neural Exception</div>
               <p className="text-sm leading-relaxed">{state.error}</p>
+              <button onClick={() => setState(prev => ({...prev, error: undefined}))} className="text-xs font-bold uppercase text-red-400/70 hover:text-red-400 flex items-center gap-1 w-fit">
+                <X size={14} /> Clear Alert
+              </button>
             </div>
           )}
 
@@ -644,7 +661,6 @@ const App: React.FC = () => {
                                  </div>
                                )}
                                
-                               {/* Display results if they exist */}
                                {state.audioUploadResults && state.audioUploadResults.length > 0 && (
                                  <div className="space-y-6 mt-10">
                                    <div className="flex items-center gap-2 text-indigo-400 font-bold uppercase text-[10px] tracking-widest">

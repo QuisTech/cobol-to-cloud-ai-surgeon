@@ -1,4 +1,3 @@
-
 export interface MigrationState {
   step: 'INPUT' | 'ANALYSIS' | 'TRANSFORMATION' | 'DEPLOYMENT';
   isProcessing: boolean;
@@ -40,10 +39,10 @@ export interface AudioInterviewResult {
 export interface AudioUploadResult {
   fileName: string;
   transcription: string;
-  requirements: ["req1", "req2"],
-  painPoints: ["pain1", "pain2"],
-  userStories: ["story1", "story2"],
-  businessRules: ["rule1", "rule2"]
+  requirements: string[];
+  painPoints: string[];
+  userStories: string[];
+  businessRules: string[];
 }
 
 export interface AnalysisResult {
