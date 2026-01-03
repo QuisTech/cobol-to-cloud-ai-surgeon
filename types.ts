@@ -9,6 +9,7 @@ export interface MigrationState {
   visionAnalysis?: VisionAnalysisResult;
   videoAnalysis?: VideoAnalysisResult;
   audioInterview?: AudioInterviewResult;
+  audioUploadResults?: AudioUploadResult[];
   error?: string;
 }
 
@@ -34,6 +35,15 @@ export interface AudioInterviewResult {
   summary: string;
   extractedRequirements: string[];
   stakeholderPriorities: string;
+}
+
+export interface AudioUploadResult {
+  fileName: string;
+  transcription: string;
+  requirements: string[];
+  painPoints: string[];
+  userStories: string[];
+  businessRules: string[];
 }
 
 export interface AnalysisResult {

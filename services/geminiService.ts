@@ -1,12 +1,63 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { AnalysisResult, ModernizedCode, DeploymentConfig, VisionAnalysisResult, VideoAnalysisResult } from "../types";
+import { AnalysisResult, ModernizedCode, DeploymentConfig, VisionAnalysisResult, VideoAnalysisResult, AudioUploadResult } from "../types";
 import { SYSTEM_PROMPT } from "../constants";
 
-export const analyzeSystemVideo = async (videoBase64: string, mimeType: string): Promise<VideoAnalysisResult> => {
-  // Fresh instance to use the latest API key from environment
+export const analyzeUploadedAudio = async (base64Audio: string, mimeType: string, fileName: string): Promise<AudioUploadResult> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    // Switching to Flash for multimodal video analysis to provide higher rate limits and lower quota usage
+    model: 'gemini-3-flash-preview',
+    contents: {
+      parts: [
+        {
+          text: `You are a specialist Business Analyst. Analyze this recorded user interview about a legacy COBOL system migration. 
+Perform the following:
+1. Provide a verbatim transcription of the key moments.
+2. Extract functional and non-functional requirements.
+3. Identify pain points mentioned by users regarding the legacy system.
+4. Generate Agile User Stories (As a... I want... So that...).
+5. List any specific business rules or calculations described.
+
+Return the result as a strict JSON object:
+{
+  "transcription": "...",
+  "requirements": ["req1", "req2"],
+  "painPoints": ["pain1", "pain2"],
+  "userStories": ["story1", "story2"],
+  "businessRules": ["rule1", "rule2"]
+}`
+        },
+        {
+          inlineData: {
+            mimeType: mimeType,
+            data: base64Audio
+          }
+        }
+      ]
+    },
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          transcription: { type: Type.STRING },
+          requirements: { type: Type.ARRAY, items: { type: Type.STRING } },
+          painPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+          userStories: { type: Type.ARRAY, items: { type: Type.STRING } },
+          businessRules: { type: Type.ARRAY, items: { type: Type.STRING } }
+        },
+        required: ['transcription', 'requirements', 'painPoints', 'userStories', 'businessRules']
+      }
+    }
+  });
+
+  const text = response.text;
+  if (!text) throw new Error("Audio analysis failed to return data.");
+  return { ...JSON.parse(text), fileName };
+};
+
+export const analyzeSystemVideo = async (videoBase64: string, mimeType: string): Promise<VideoAnalysisResult> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: {
       parts: [
@@ -106,7 +157,6 @@ export const analyzeCobolScreenshot = async (imageDataUrl: string): Promise<Visi
 export const analyzeCobolCode = async (code: string): Promise<AnalysisResult> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    // Pro is used for deep logic and bug detection
     model: 'gemini-3-pro-preview',
     contents: { 
       parts: [{ text: `Analyze the following COBOL code for bugs and logic. Output JSON.\n\nCOBOL Code:\n${code}` }] 
@@ -185,7 +235,6 @@ export const transformToSpringBoot = async (code: string, analysis: AnalysisResu
 export const generateCloudConfig = async (modernizedCode: ModernizedCode): Promise<DeploymentConfig> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    // Cloud configuration generation is standard and works well on Flash
     model: 'gemini-3-flash-preview',
     contents: { 
       parts: [{ text: `Generate Docker/K8s for these files: ${modernizedCode.files.map(f => f.path).join(', ')}` }] 
