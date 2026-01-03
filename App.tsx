@@ -27,8 +27,8 @@ import {
   Lock,
   Unlock,
   X,
-  // Fix: Added missing Files icon import
-  Files
+  Files,
+  FileUp
 } from 'lucide-react';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { MigrationState, AudioUploadResult } from './types';
@@ -56,6 +56,11 @@ const App: React.FC = () => {
     cobolCode: INITIAL_COBOL_EXAMPLE,
     audioUploadResults: [],
   });
+
+  // Refs for file inputs to avoid overlay bugs
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedSampleId, setSelectedSampleId] = useState<string>(SAMPLE_PROGRAMS[0].id);
   const selectedSample = SAMPLE_PROGRAMS.find(s => s.id === selectedSampleId);
@@ -145,7 +150,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Fix: Implemented missing initializeSynthesis function
   const initializeSynthesis = async () => {
     if (state.isProcessing || !state.analysisResults) return;
     try {
@@ -153,19 +157,13 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, isProcessing: true, error: undefined }));
       addLog('Agent Phase: Logic synthesis initiated (Gemini 3 Pro)...');
       const modernized = await transformToSpringBoot(state.cobolCode, state.analysisResults);
-      setState(prev => ({ 
-        ...prev, 
-        modernizedCode: modernized, 
-        isProcessing: false, 
-        step: 'TRANSFORMATION' 
-      }));
+      setState(prev => ({ ...prev, modernizedCode: modernized, isProcessing: false, step: 'TRANSFORMATION' }));
       addLog('Modernized source tree synthesized.');
     } catch (err: any) {
       setState(prev => ({ ...prev, isProcessing: false, error: handleApiError(err) }));
     }
   };
 
-  // Fix: Implemented missing initializeInfrastructure function
   const initializeInfrastructure = async () => {
     if (state.isProcessing || !state.modernizedCode) return;
     try {
@@ -173,20 +171,14 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, isProcessing: true, error: undefined }));
       addLog('Agent Phase: Infrastructure orchestration (Gemini 3 Flash)...');
       const config = await generateCloudConfig(state.modernizedCode);
-      setState(prev => ({ 
-        ...prev, 
-        deploymentConfig: config, 
-        isProcessing: false, 
-        step: 'DEPLOYMENT' 
-      }));
+      setState(prev => ({ ...prev, deploymentConfig: config, isProcessing: false, step: 'DEPLOYMENT' }));
       addLog('Cloud orchestration artifacts generated.');
     } catch (err: any) {
       setState(prev => ({ ...prev, isProcessing: false, error: handleApiError(err) }));
     }
   };
 
-  const handleAudioBatch = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Stop click from reaching file input
+  const handleAudioBatch = async () => {
     if (pendingAudioFiles.length === 0 || state.isProcessing) return;
     try {
       await ensureApiKey();
@@ -203,14 +195,14 @@ const App: React.FC = () => {
         results.push(res);
       }
       setState(prev => ({ ...prev, isProcessing: false, audioUploadResults: results }));
+      setPendingAudioFiles([]); // Clear staging after success
       addLog('Batch requirement synchronization complete.');
     } catch (err: any) {
       setState(prev => ({ ...prev, isProcessing: false, error: handleApiError(err) }));
     }
   };
 
-  const handleVisionAnalysis = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleVisionAnalysis = async () => {
     if (!uploadedImage || state.isProcessing) return;
     try {
       await ensureApiKey();
@@ -224,8 +216,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleVideoAnalysis = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleVideoAnalysis = async () => {
     if (!uploadedVideo || state.isProcessing) return;
     try {
       await ensureApiKey();
@@ -463,20 +454,46 @@ const App: React.FC = () => {
 
                     {analysisMode === 'image' && (
                       <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                        <input 
+                          type="file" 
+                          ref={imageInputRef} 
+                          className="hidden" 
+                          accept="image/*" 
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if(f){
+                              const r = new FileReader();
+                              r.onloadend = () => setUploadedImage(r.result as string);
+                              r.readAsDataURL(f);
+                            }
+                          }}
+                        />
                         {!uploadedImage ? (
-                          <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 rounded-3xl p-20 cursor-pointer hover:border-emerald-500 hover:bg-emerald-500/5 transition-all group relative">
-                            <input type="file" accept="image/*" onChange={(e) => {const f=e.target.files?.[0]; if(f){const r=new FileReader(); r.onloadend=()=>setUploadedImage(r.result as string); r.readAsDataURL(f)}}} className="absolute inset-0 opacity-0 cursor-pointer" />
+                          <div 
+                            onClick={() => imageInputRef.current?.click()}
+                            className="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 rounded-3xl p-20 cursor-pointer hover:border-emerald-500 hover:bg-emerald-500/5 transition-all group"
+                          >
                             <Upload size={48} className="text-slate-500 group-hover:text-emerald-500 transition-all mb-4" />
                             <h4 className="font-bold text-lg">Screenshot OCR Workspace</h4>
-                            <p className="text-xs text-slate-500 mt-2">Ingest system frames to discover schema fields</p>
+                            <p className="text-xs text-slate-500 mt-2 text-center">Incorporate mainframe frames to auto-discover schema fields</p>
                           </div>
                         ) : (
                           <div className="space-y-6">
                             <div className="relative group max-w-sm mx-auto">
                                <img src={uploadedImage} className="rounded-2xl border border-slate-700 shadow-2xl" alt="Source" />
-                               <button onClick={() => setUploadedImage(null)} className="absolute -top-3 -right-3 p-2 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-400 transition-colors"><X size={16}/></button>
+                               <button 
+                                 onClick={() => setUploadedImage(null)} 
+                                 className="absolute -top-3 -right-3 p-2 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-400 transition-colors"
+                               >
+                                 <X size={16}/>
+                               </button>
                             </div>
-                            <button onClick={handleVisionAnalysis} className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl transform active:scale-95 transition-all"><Eye size={20} /> Synchronize Frame Intelligence</button>
+                            <button 
+                              onClick={handleVisionAnalysis} 
+                              className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl transform active:scale-95 transition-all"
+                            >
+                              <Eye size={20} /> Synchronize Frame Intelligence
+                            </button>
                           </div>
                         )}
                         <VisionAnalysisDisplay analysis={state.visionAnalysis} />
@@ -485,11 +502,30 @@ const App: React.FC = () => {
 
                     {analysisMode === 'video' && (
                       <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                        <input 
+                          type="file" 
+                          ref={videoInputRef} 
+                          className="hidden" 
+                          accept="video/*" 
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if(f){
+                              const r = new FileReader();
+                              r.onloadend = () => {
+                                const b = (r.result as string).split(',')[1];
+                                setUploadedVideo({data: b, type: f.type, name: f.name});
+                              };
+                              r.readAsDataURL(f);
+                            }
+                          }}
+                        />
                         {!uploadedVideo ? (
-                          <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 rounded-3xl p-20 cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all group relative">
-                            <input type="file" accept="video/*" onChange={(e) => {const f=e.target.files?.[0]; if(f){const r=new FileReader(); r.onloadend=()=>{const b=(r.result as string).split(',')[1]; setUploadedVideo({data:b, type:f.type, name: f.name})}; r.readAsDataURL(f)}}} className="absolute inset-0 opacity-0 cursor-pointer" />
+                          <div 
+                            onClick={() => videoInputRef.current?.click()}
+                            className="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 rounded-3xl p-20 cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all group"
+                          >
                             <Video size={48} className="text-slate-500 group-hover:text-purple-500 mb-4 transition-all" />
-                            <h4 className="font-bold text-lg">Behavioral Walkthrough Scan</h4>
+                            <h4 className="font-bold text-lg text-center">Behavioral Walkthrough Scan</h4>
                             <p className="text-xs text-slate-500 mt-2">Walkthrough analysis to detect state transitions</p>
                           </div>
                         ) : (
@@ -502,9 +538,16 @@ const App: React.FC = () => {
                                   <p className="text-[10px] text-slate-500 font-mono uppercase">Staged for Behavioral Analysis</p>
                                 </div>
                               </div>
-                              <button onClick={() => setUploadedVideo(null)} className="p-2 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded-lg transition-colors"><Trash2 size={18}/></button>
+                              <button onClick={() => setUploadedVideo(null)} className="p-2 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded-lg transition-colors">
+                                <Trash2 size={18}/>
+                              </button>
                             </div>
-                            <button onClick={handleVideoAnalysis} className="w-full py-5 bg-purple-600 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl transform active:scale-95 transition-all"><Play size={20} /> Execute Behavioral Deep Scan</button>
+                            <button 
+                              onClick={handleVideoAnalysis} 
+                              className="w-full py-5 bg-purple-600 hover:bg-purple-500 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl transform active:scale-95 transition-all"
+                            >
+                              <Play size={20} /> Execute Behavioral Deep Scan
+                            </button>
                           </div>
                         )}
                         {state.videoAnalysis && (
@@ -513,11 +556,15 @@ const App: React.FC = () => {
                             <div className="grid grid-cols-2 gap-6">
                                <div className="bg-slate-800/40 p-5 rounded-xl border border-slate-800">
                                   <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Navigation Tree</span>
-                                  <ul className="text-xs list-disc pl-4 mt-4 space-y-2 text-slate-300 font-medium">{state.videoAnalysis.navigationPatterns.map((p,i)=><li key={i}>{p}</li>)}</ul>
+                                  <ul className="text-xs list-disc pl-4 mt-4 space-y-2 text-slate-300 font-medium">
+                                    {state.videoAnalysis.navigationPatterns.map((p,i)=><li key={i}>{p}</li>)}
+                                  </ul>
                                </div>
                                <div className="bg-slate-800/40 p-5 rounded-xl border border-slate-800">
                                   <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Screen Objects</span>
-                                  <ul className="text-xs list-disc pl-4 mt-4 space-y-2 text-slate-300 font-medium">{state.videoAnalysis.uiComponents.map((p,i)=><li key={i}>{p}</li>)}</ul>
+                                  <ul className="text-xs list-disc pl-4 mt-4 space-y-2 text-slate-300 font-medium">
+                                    {state.videoAnalysis.uiComponents.map((p,i)=><li key={i}>{p}</li>)}
+                                  </ul>
                                </div>
                             </div>
                           </div>
@@ -551,9 +598,19 @@ const App: React.FC = () => {
                             </div>
                           ) : (
                              <div className="space-y-6">
+                               <input 
+                                 type="file" 
+                                 ref={audioInputRef} 
+                                 className="hidden" 
+                                 multiple 
+                                 accept="audio/*" 
+                                 onChange={(e) => e.target.files && setPendingAudioFiles(Array.from(e.target.files))}
+                               />
                                {pendingAudioFiles.length === 0 ? (
-                                 <div className="flex flex-col items-center justify-center p-20 border-2 border-dashed border-slate-800 rounded-3xl gap-6 shadow-inner hover:border-indigo-500 transition-all group relative">
-                                   <input type="file" multiple accept="audio/*" onChange={(e) => e.target.files && setPendingAudioFiles(Array.from(e.target.files))} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                 <div 
+                                   onClick={() => audioInputRef.current?.click()}
+                                   className="flex flex-col items-center justify-center p-20 border-2 border-dashed border-slate-800 rounded-3xl gap-6 shadow-inner hover:border-indigo-500 transition-all group cursor-pointer"
+                                 >
                                    <FileAudio size={64} className="text-indigo-400 group-hover:scale-110 transition-transform mb-4" />
                                    <div className="text-center">
                                      <h4 className="text-xl font-bold">Ingest Recorded Interviews</h4>
@@ -565,33 +622,49 @@ const App: React.FC = () => {
                                    <div className="bg-slate-800/50 rounded-3xl border border-indigo-500/30 p-8 shadow-2xl">
                                       <div className="flex items-center justify-between mb-6">
                                         <h4 className="text-sm font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-2"><Files size={16}/> Staged Stakeholder Data</h4>
-                                        <button onClick={() => setPendingAudioFiles([])} className="text-xs text-slate-500 hover:text-red-400 flex items-center gap-1 transition-colors"><Trash2 size={12}/> Clear All</button>
+                                        <button onClick={() => setPendingAudioFiles([])} className="text-xs text-slate-500 hover:text-red-400 flex items-center gap-1 transition-colors">
+                                          <Trash2 size={12}/> Clear All
+                                        </button>
                                       </div>
                                       <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
                                         {pendingAudioFiles.map((file, idx) => (
                                           <div key={idx} className="flex items-center justify-between bg-slate-900/50 p-4 rounded-xl border border-slate-700">
                                             <span className="text-xs font-mono text-slate-300 truncate">{file.name}</span>
-                                            <span className="text-[10px] text-indigo-400 font-bold uppercase">Ready</span>
+                                            <span className="text-[10px] text-indigo-400 font-bold uppercase shrink-0 ml-4">Staged</span>
                                           </div>
                                         ))}
                                       </div>
                                    </div>
-                                   <button onClick={handleAudioBatch} className="w-full py-5 bg-indigo-600 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl transform active:scale-95 transition-all"><Sparkles size={20} /> Process Bundle Synchronization</button>
+                                   <button 
+                                     onClick={handleAudioBatch} 
+                                     className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl transform active:scale-95 transition-all"
+                                   >
+                                     <Sparkles size={20} /> Process Bundle Synchronization
+                                   </button>
                                  </div>
                                )}
+                               
+                               {/* Display results if they exist */}
                                {state.audioUploadResults && state.audioUploadResults.length > 0 && (
                                  <div className="space-y-6 mt-10">
+                                   <div className="flex items-center gap-2 text-indigo-400 font-bold uppercase text-[10px] tracking-widest">
+                                      <FileUp size={14}/> Extracted Stakeholder Requirements
+                                   </div>
                                    {state.audioUploadResults.map((res, i) => (
                                       <div key={i} className="bg-slate-800/40 border border-slate-700 rounded-2xl p-6 space-y-4 animate-in fade-in">
-                                        <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-widest border-b border-slate-700 pb-2">{res.fileName}</h4>
-                                        <div className="grid grid-cols-2 gap-6 text-[11px]">
+                                        <h4 className="text-xs font-bold text-indigo-200 uppercase tracking-widest border-b border-slate-700 pb-2">{res.fileName}</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[11px]">
                                           <div className="space-y-2">
-                                            <span className="text-slate-500 font-bold uppercase tracking-tighter">Requirements</span>
-                                            <ul className="list-disc pl-4 text-slate-300 space-y-1">{res.requirements.map((r,k)=><li key={k}>{r}</li>)}</ul>
+                                            <span className="text-slate-500 font-bold uppercase tracking-tighter block mb-1">Key Requirements</span>
+                                            <ul className="list-disc pl-4 text-slate-300 space-y-1">
+                                              {res.requirements.map((r,k)=><li key={k}>{r}</li>)}
+                                            </ul>
                                           </div>
                                           <div className="space-y-2">
-                                            <span className="text-slate-500 font-bold uppercase tracking-tighter">User Stories</span>
-                                            <ul className="list-disc pl-4 text-slate-300 space-y-1">{res.userStories.map((r,k)=><li key={k}>{r}</li>)}</ul>
+                                            <span className="text-slate-500 font-bold uppercase tracking-tighter block mb-1">User Stories</span>
+                                            <ul className="list-disc pl-4 text-slate-300 space-y-1">
+                                              {res.userStories.map((r,k)=><li key={k}>{r}</li>)}
+                                            </ul>
                                           </div>
                                         </div>
                                       </div>
