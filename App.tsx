@@ -28,7 +28,9 @@ import {
   Unlock,
   X,
   Files,
-  FileUp
+  FileUp,
+  FileDown,
+  Eraser
 } from 'lucide-react';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { MigrationState, AudioUploadResult } from './types';
@@ -60,6 +62,7 @@ const App: React.FC = () => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const fileSourceRef = useRef<HTMLInputElement>(null);
 
   const [selectedSampleId, setSelectedSampleId] = useState<string>(SAMPLE_PROGRAMS[0].id);
   const selectedSample = SAMPLE_PROGRAMS.find(s => s.id === selectedSampleId);
@@ -148,9 +151,14 @@ const App: React.FC = () => {
     setPendingAudioFiles([]);
     setLogMessages([]);
     setStatusText('');
+    setSelectedSampleId(SAMPLE_PROGRAMS[0].id);
   };
 
   const startMigration = async () => {
+    if (!state.cobolCode.trim()) {
+      setState(prev => ({ ...prev, error: "Source Input Required: Please paste COBOL code or upload a .CBL file before initiating the migration cycle." }));
+      return;
+    }
     if (state.isProcessing) return;
     try {
       await ensureApiKey();
@@ -241,6 +249,20 @@ const App: React.FC = () => {
       addLog('Behavioral UI map extracted.');
     } catch (err: any) {
       setState(prev => ({ ...prev, isProcessing: false, error: handleApiError(err) }));
+    }
+  };
+
+  const handleFileSourceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        setState(prev => ({ ...prev, cobolCode: content }));
+        setSelectedSampleId('custom');
+        addLog(`Imported: ${file.name}`);
+      };
+      reader.readAsText(file);
     }
   };
 
@@ -389,7 +411,21 @@ const App: React.FC = () => {
                       </label>
                       <select 
                         value={selectedSampleId} 
-                        onChange={(e) => {setSelectedSampleId(e.target.value); const s = SAMPLE_PROGRAMS.find(p=>p.id===e.target.value); if(s && s.id!=='custom') setState(prev=>({...prev, cobolCode:s.code}))}} 
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedSampleId(val);
+                          const s = SAMPLE_PROGRAMS.find(p => p.id === val);
+                          if (s) {
+                            // If it's custom, we clear the code editor to allow pasting/uploading
+                            if (s.id === 'custom') {
+                              setState(prev => ({ ...prev, cobolCode: '' }));
+                              addLog('Custom workspace initialized. Paste or upload your source.');
+                            } else {
+                              setState(prev => ({ ...prev, cobolCode: s.code }));
+                              addLog(`${s.name} loaded into core.`);
+                            }
+                          }
+                        }} 
                         className="w-full bg-slate-900/80 border border-slate-700 rounded-2xl px-5 py-4 text-slate-200 focus:ring-2 focus:ring-indigo-500/50 focus:outline-none appearance-none cursor-pointer"
                       >
                         {SAMPLE_PROGRAMS.map(s => <option key={s.id} value={s.id}>{s.name} — {s.feature}</option>)}
@@ -432,11 +468,37 @@ const App: React.FC = () => {
                     {analysisMode === 'code' && (
                       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in">
                         <div className="lg:col-span-8 space-y-4">
-                          <div className="flex items-center gap-2 text-indigo-400 font-semibold uppercase text-[10px] tracking-widest"><Terminal size={14} /> Source Editor</div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-indigo-400 font-semibold uppercase text-[10px] tracking-widest">
+                              <Terminal size={14} /> Source Editor
+                            </div>
+                            <div className="flex items-center gap-2">
+                               <input 
+                                 type="file" 
+                                 ref={fileSourceRef} 
+                                 className="hidden" 
+                                 accept=".cbl,.cob,.txt"
+                                 onChange={handleFileSourceUpload}
+                               />
+                               <button 
+                                 onClick={() => fileSourceRef.current?.click()}
+                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-[10px] font-bold text-slate-300 uppercase transition-colors"
+                               >
+                                 <FileUp size={12} /> Upload .CBL
+                               </button>
+                               <button 
+                                 onClick={() => setState(prev => ({ ...prev, cobolCode: '' }))}
+                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-red-500/10 border border-slate-700 hover:border-red-500/30 rounded-xl text-[10px] font-bold text-slate-300 hover:text-red-400 uppercase transition-colors"
+                               >
+                                 <Eraser size={12} /> Clear
+                               </button>
+                            </div>
+                          </div>
                           <div className="relative group">
                             <textarea 
                               value={state.cobolCode} 
                               onChange={(e) => setState(prev => ({ ...prev, cobolCode: e.target.value }))} 
+                              placeholder={selectedSampleId === 'custom' ? "Paste your legacy COBOL source code here for neural analysis..." : ""}
                               className="w-full h-[550px] bg-slate-900 border border-slate-700/50 rounded-2xl p-8 mono text-[13px] text-indigo-100/90 focus:ring-2 focus:ring-indigo-500/30 resize-none shadow-2xl custom-scrollbar focus:outline-none transition-all leading-relaxed" 
                               spellCheck={false} 
                             />

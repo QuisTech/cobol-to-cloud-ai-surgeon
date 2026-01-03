@@ -398,7 +398,7 @@ export interface SampleProgram {
   lines: number;
   feature: string;
   purpose: string;
-  complexity: 'Low' | 'Medium' | 'High';
+  complexity: 'Low' | 'Medium' | 'High' | 'Variable';
   bugNote?: string;
 }
 
@@ -451,12 +451,12 @@ export const SAMPLE_PROGRAMS: SampleProgram[] = [
   },
   {
     id: 'custom',
-    name: 'Custom Input',
+    name: 'Custom COBOL Program',
     code: '',
     lines: 0,
-    feature: 'N/A',
-    purpose: 'Manual code entry',
-    complexity: 'Low'
+    feature: 'Upload or Paste Custom Code',
+    purpose: 'Migrate your own COBOL programs',
+    complexity: 'Variable'
   }
 ];
 
