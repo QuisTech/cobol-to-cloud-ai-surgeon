@@ -6,7 +6,34 @@ export interface MigrationState {
   analysisResults?: AnalysisResult;
   modernizedCode?: ModernizedCode;
   deploymentConfig?: DeploymentConfig;
+  visionAnalysis?: VisionAnalysisResult;
+  videoAnalysis?: VideoAnalysisResult;
+  audioInterview?: AudioInterviewResult;
   error?: string;
+}
+
+export interface VisionAnalysisResult {
+  extractedText: string;
+  fields: Array<{
+    name: string;
+    type: string;
+    length: string;
+  }>;
+  cobolCode: string;
+  businessLogic: string;
+}
+
+export interface VideoAnalysisResult {
+  navigationPatterns: string[];
+  uiComponents: string[];
+  observedBusinessRules: string;
+  performanceNotes: string;
+}
+
+export interface AudioInterviewResult {
+  summary: string;
+  extractedRequirements: string[];
+  stakeholderPriorities: string;
 }
 
 export interface AnalysisResult {
@@ -33,12 +60,4 @@ export interface DeploymentConfig {
   dockerfile: string;
   kubernetesYaml: string;
   helmChartDescription: string;
-}
-
-export enum MigrationStatus {
-  IDLE = 'IDLE',
-  ANALYZING = 'ANALYZING',
-  TRANSFORMING = 'TRANSFORMING',
-  PACKAGING = 'PACKAGING',
-  COMPLETE = 'COMPLETE'
 }
