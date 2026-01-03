@@ -28,7 +28,8 @@ import {
   Sparkles,
   Command,
   Activity,
-  Search
+  Search,
+  Zap
 } from 'lucide-react';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { MigrationState, AudioInterviewResult, AudioUploadResult } from './types';
@@ -64,14 +65,12 @@ const App: React.FC = () => {
   const [logMessages, setLogMessages] = useState<string[]>([]);
   const [hasApiKey, setHasApiKey] = useState<boolean>(true);
   
-  // Multimodal states
   const [analysisMode, setAnalysisMode] = useState<'code' | 'image' | 'video' | 'audio'>('code');
   const [audioSubMode, setAudioSubMode] = useState<'live' | 'upload'>('live');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [uploadedVideo, setUploadedVideo] = useState<{data: string, type: string} | null>(null);
   const [pendingAudioFiles, setPendingAudioFiles] = useState<File[]>([]);
 
-  // Audio Interview states
   const [isInterviewing, setIsInterviewing] = useState(false);
   const [transcriptions, setTranscriptions] = useState<string[]>([]);
   const nextStartTimeRef = useRef(0);
@@ -148,6 +147,44 @@ const App: React.FC = () => {
     setStatusText('');
   };
 
+  const startMigration = async () => {
+    try {
+      setState(prev => ({ ...prev, isProcessing: true, step: 'ANALYSIS', error: undefined }));
+      addLog('Agent Phase: Deep logic extraction & bug detection...');
+      const analysis = await analyzeCobolCode(state.cobolCode);
+      setState(prev => ({ ...prev, analysisResults: analysis, isProcessing: false }));
+      addLog('Autonomous analysis complete. Inspect logic before synthesis.');
+    } catch (err: any) {
+      setState(prev => ({ ...prev, isProcessing: false, error: handleApiError(err) }));
+    }
+  };
+
+  const initializeSynthesis = async () => {
+    if (!state.analysisResults) return;
+    try {
+      setState(prev => ({ ...prev, isProcessing: true, step: 'TRANSFORMATION', error: undefined }));
+      addLog('Agent Phase: Java Spring Boot synthesis from logic graph...');
+      const modernized = await transformToSpringBoot(state.cobolCode, state.analysisResults);
+      setState(prev => ({ ...prev, modernizedCode: modernized, isProcessing: false }));
+      addLog('Modern architecture generated. Review source files.');
+    } catch (err: any) {
+      setState(prev => ({ ...prev, isProcessing: false, error: handleApiError(err) }));
+    }
+  };
+
+  const initializeInfrastructure = async () => {
+    if (!state.modernizedCode) return;
+    try {
+      setState(prev => ({ ...prev, isProcessing: true, step: 'DEPLOYMENT', error: undefined }));
+      addLog('Agent Phase: Cloud-native orchestration & Helm charts...');
+      const cloud = await generateCloudConfig(state.modernizedCode);
+      setState(prev => ({ ...prev, deploymentConfig: cloud, isProcessing: false }));
+      addLog('Infrastructure synthesis complete.');
+    } catch (err: any) {
+      setState(prev => ({ ...prev, isProcessing: false, error: handleApiError(err) }));
+    }
+  };
+
   const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setPendingAudioFiles(prev => [...prev, ...Array.from(e.target.files!)]);
@@ -163,21 +200,17 @@ const App: React.FC = () => {
     try {
       setState(prev => ({ ...prev, isProcessing: true, error: undefined }));
       const results: AudioUploadResult[] = [];
-      
       for (let i = 0; i < pendingAudioFiles.length; i++) {
         const file = pendingAudioFiles[i];
         addLog(`Analyzing recorded interview: ${file.name} (${i + 1}/${pendingAudioFiles.length})`);
-        
         const base64 = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve((reader.result as string).split(',')[1]);
           reader.readAsDataURL(file);
         });
-
         const result = await analyzeUploadedAudio(base64, file.type, file.name);
         results.push(result);
       }
-
       setState(prev => ({ ...prev, isProcessing: false, audioUploadResults: results }));
       setPendingAudioFiles([]);
       addLog('Batch processing successful.');
@@ -308,35 +341,10 @@ const App: React.FC = () => {
     }}));
   };
 
-  const startMigration = async () => {
-    try {
-      if (!hasApiKey && window.aistudio) {
-        if (window.confirm("A paid API key is required for Gemini 3 Pro reasoning. Open key selector?")) await handleOpenKeySelector();
-        else return;
-      }
-      setState(prev => ({ ...prev, isProcessing: true, step: 'ANALYSIS', error: undefined }));
-      addLog('Agent Phase: Logic extraction & bug detection...');
-      const analysis = await analyzeCobolCode(state.cobolCode);
-      setState(prev => ({ ...prev, analysisResults: analysis }));
-      
-      addLog('Agent Phase: Java Spring Boot synthesis...');
-      const modernized = await transformToSpringBoot(state.cobolCode, analysis);
-      setState(prev => ({ ...prev, modernizedCode: modernized, step: 'TRANSFORMATION' }));
-      
-      addLog('Agent Phase: Cloud-native orchestration...');
-      const cloud = await generateCloudConfig(modernized);
-      setState(prev => ({ ...prev, deploymentConfig: cloud, step: 'DEPLOYMENT', isProcessing: false }));
-      addLog('Migration cycle complete.');
-    } catch (err: any) {
-      setState(prev => ({ ...prev, isProcessing: false, error: handleApiError(err) }));
-    }
-  };
-
   const currentStepIndex = ['INPUT', 'ANALYSIS', 'TRANSFORMATION', 'DEPLOYMENT'].indexOf(state.step);
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden text-slate-200 selection:bg-indigo-500/30">
-      {/* Restored Premium Navigation */}
       <nav className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={resetMigration}>
@@ -366,7 +374,6 @@ const App: React.FC = () => {
       </nav>
 
       <main className="flex-1 max-w-7xl mx-auto px-4 py-10 w-full space-y-12">
-        {/* Progress Tracker */}
         <div className="relative flex justify-between items-center max-w-3xl mx-auto px-12 mb-16">
           <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-slate-800/50 -z-10 -translate-y-1/2" />
           {[
@@ -423,7 +430,6 @@ const App: React.FC = () => {
             <>
               {state.step === 'INPUT' && (
                 <div className="space-y-10 animate-in fade-in">
-                  {/* Premium Action Bar */}
                   <div className="flex flex-col md:flex-row gap-6 items-center bg-slate-800/20 border border-slate-700/50 rounded-3xl p-8 shadow-2xl backdrop-blur-md">
                     <div className="flex-1 space-y-3 w-full">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -446,11 +452,10 @@ const App: React.FC = () => {
                       onClick={startMigration} 
                       className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 px-12 rounded-2xl shadow-[0_10px_30px_rgba(79,70,229,0.4)] flex items-center justify-center gap-3 transition-all transform active:scale-95 group"
                     >
-                      Start Neural Cycle <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                      Start Neural Cycle <Zap size={20} className="group-hover:text-yellow-400 transition-colors" />
                     </button>
                   </div>
 
-                  {/* Restored Multimodal Grid with Premium Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     {[
                       { id: 'code', Icon: Terminal, label: 'Codebase', color: 'indigo', desc: 'Direct logic analysis' },
@@ -476,16 +481,10 @@ const App: React.FC = () => {
                           </span>
                           <span className="text-[10px] text-slate-500 mt-1 font-medium">{mode.desc}</span>
                         </div>
-                        {analysisMode === mode.id && (
-                          <div className={`absolute -right-4 -bottom-4 opacity-10 text-${mode.color}-500`}>
-                            <mode.Icon size={80} />
-                          </div>
-                        )}
                       </button>
                     ))}
                   </div>
 
-                  {/* Contextual Workspace */}
                   <div className="bg-slate-900/30 border border-slate-800 rounded-3xl p-10 min-h-[400px] shadow-inner backdrop-blur-sm">
                     {analysisMode === 'image' && (
                       <div className="space-y-6 animate-in slide-in-from-top-4">
@@ -525,7 +524,6 @@ const App: React.FC = () => {
                         )}
                         {state.videoAnalysis && (
                           <div className="bg-slate-900 border border-purple-500/20 rounded-2xl p-8 space-y-6 shadow-2xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-8 opacity-5 text-purple-400 rotate-12"><Activity size={120} /></div>
                             <h4 className="text-sm font-bold text-purple-400 uppercase tracking-[0.2em] flex items-center gap-2"><Sparkles size={16} /> Behavior Map</h4>
                             <div className="grid grid-cols-2 gap-6 relative">
                               <div className="bg-slate-800/40 p-5 rounded-2xl border border-slate-800/50 backdrop-blur-sm">
@@ -541,12 +539,6 @@ const App: React.FC = () => {
                                 </ul>
                               </div>
                             </div>
-                            <div className="pt-6 border-t border-slate-800">
-                              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Logic Inference</span>
-                              <p className="text-sm text-slate-400 mt-3 italic leading-relaxed bg-slate-800/20 p-4 rounded-xl border border-slate-800/30">
-                                "{state.videoAnalysis.observedBusinessRules}"
-                              </p>
-                            </div>
                           </div>
                         )}
                       </div>
@@ -555,151 +547,59 @@ const App: React.FC = () => {
                     {analysisMode === 'audio' && (
                       <div className="space-y-8 animate-in slide-in-from-top-4">
                         <div className="flex items-center justify-center p-1.5 bg-slate-800/50 rounded-2xl border border-slate-700/50 max-w-sm mx-auto backdrop-blur-sm shadow-xl">
-                          <button 
-                            onClick={() => setAudioSubMode('live')} 
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold rounded-xl transition-all ${audioSubMode === 'live' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                          >
-                            <Mic size={14} /> Live Agent
-                          </button>
-                          <button 
-                            onClick={() => setAudioSubMode('upload')} 
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold rounded-xl transition-all ${audioSubMode === 'upload' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                          >
-                            <FileAudio size={14} /> Batch Audio
-                          </button>
+                          <button onClick={() => setAudioSubMode('live')} className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold rounded-xl transition-all ${audioSubMode === 'live' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}><Mic size={14} /> Live Agent</button>
+                          <button onClick={() => setAudioSubMode('upload')} className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold rounded-xl transition-all ${audioSubMode === 'upload' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}><FileAudio size={14} /> Batch Audio</button>
                         </div>
-
                         {audioSubMode === 'live' ? (
                           <div className="space-y-6 animate-in fade-in">
                             <div className="flex flex-col items-center justify-center bg-slate-900/40 p-16 border-2 border-dashed border-slate-700 rounded-3xl gap-6 shadow-inner relative overflow-hidden group">
-                              <div className={`p-6 rounded-3xl bg-blue-600/10 text-blue-500 transition-all duration-700 ${isInterviewing ? 'animate-pulse scale-110 shadow-[0_0_50px_rgba(59,130,246,0.2)]' : 'group-hover:bg-blue-600 group-hover:text-white'}`}>
-                                <Mic size={48} />
-                              </div>
+                              <div className={`p-6 rounded-3xl bg-blue-600/10 text-blue-500 transition-all duration-700 ${isInterviewing ? 'animate-pulse scale-110 shadow-[0_0_50px_rgba(59,130,246,0.2)]' : 'group-hover:bg-blue-600 group-hover:text-white'}`}><Mic size={48} /></div>
                               <div className="text-center space-y-2">
                                 <h4 className="font-bold text-xl text-slate-200">Interactive Requirement Workshop</h4>
-                                <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">Collaborate with the Gemini Native Audio Agent to discover hidden business context through natural conversation.</p>
+                                <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">Collaborate with the Gemini Native Audio Agent to discover hidden business context.</p>
                               </div>
                               {!isInterviewing ? (
-                                <button onClick={startInterview} className="px-10 py-4 bg-blue-600 rounded-2xl font-bold shadow-xl shadow-blue-500/20 flex items-center gap-2 hover:bg-blue-500 transition-all transform active:scale-95">
-                                  Establish Neural Link
-                                </button>
+                                <button onClick={startInterview} className="px-10 py-4 bg-blue-600 rounded-2xl font-bold shadow-xl shadow-blue-500/20 flex items-center gap-2 hover:bg-blue-500 transition-all transform active:scale-95">Establish Neural Link</button>
                               ) : (
-                                <button onClick={endInterview} className="px-10 py-4 bg-red-600 rounded-2xl font-bold flex items-center gap-2 animate-pulse shadow-xl shadow-red-500/20">
-                                  <Square size={16} /> Finalize Session
-                                </button>
+                                <button onClick={endInterview} className="px-10 py-4 bg-red-600 rounded-2xl font-bold flex items-center gap-2 animate-pulse shadow-xl shadow-red-500/20"><Square size={16} /> Finalize Session</button>
                               )}
                             </div>
-
                             {transcriptions.length > 0 && (
                               <div className="bg-slate-900 border border-blue-500/10 rounded-2xl p-6 h-80 overflow-y-auto flex flex-col gap-4 custom-scrollbar shadow-inner backdrop-blur-sm">
                                 {transcriptions.map((t,i) => (
-                                  <div key={i} className={`text-xs p-4 rounded-2xl max-w-[85%] border shadow-sm animate-in slide-in-from-bottom-2 ${
-                                    t.startsWith('AI:') 
-                                      ? 'bg-blue-600/5 self-start text-blue-100 border-blue-500/20 rounded-tl-none' 
-                                      : 'bg-slate-800/80 self-end text-slate-300 border-slate-700 rounded-tr-none'
-                                  }`}>
-                                    {t}
-                                  </div>
+                                  <div key={i} className={`text-xs p-4 rounded-2xl max-w-[85%] border shadow-sm animate-in slide-in-from-bottom-2 ${t.startsWith('AI:') ? 'bg-blue-600/5 self-start text-blue-100 border-blue-500/20 rounded-tl-none' : 'bg-slate-800/80 self-end text-slate-300 border-slate-700 rounded-tr-none'}`}>{t}</div>
                                 ))}
-                              </div>
-                            )}
-
-                            {state.audioInterview && (
-                              <div className="bg-slate-900 border border-blue-500/20 rounded-3xl p-8 space-y-6 shadow-2xl animate-in slide-in-from-bottom-4 border-l-4 border-l-blue-500">
-                                <div className="flex items-center gap-2 text-blue-400 font-bold uppercase text-[10px] tracking-[0.2em]">
-                                  <ShieldCheck size={16}/> Workshop Synthesis
-                                </div>
-                                <p className="text-sm text-slate-400 leading-relaxed font-medium italic">"{state.audioInterview.summary}"</p>
-                                <div className="flex flex-wrap gap-2 pt-2">
-                                  {state.audioInterview.extractedRequirements.map((r,i)=><span key={i} className="text-[10px] px-3 py-1.5 bg-blue-500/10 text-blue-300 border border-blue-500/20 rounded-full font-bold uppercase tracking-wider">{r}</span>)}
-                                </div>
                               </div>
                             )}
                           </div>
                         ) : (
                           <div className="space-y-8 animate-in fade-in">
-                            <div className="space-y-4">
-                              <label htmlFor="audio-batch-up" className="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 rounded-3xl p-16 cursor-pointer hover:border-indigo-500 hover:bg-indigo-500/5 transition-all group relative">
-                                <input type="file" multiple accept="audio/*" onChange={handleAudioFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                <div className="p-4 bg-slate-800 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                                  <FileAudio size={32} />
-                                </div>
-                                <h4 className="mt-6 font-bold text-lg text-slate-200 text-center">Batch Ingest Recorded Interviews</h4>
-                                <p className="text-xs text-slate-500 mt-2">Submit stakeholder sessions for automated requirement extraction</p>
-                              </label>
-
-                              {pendingAudioFiles.length > 0 && (
+                            <label htmlFor="audio-batch-up" className="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 rounded-3xl p-16 cursor-pointer hover:border-indigo-500 hover:bg-indigo-500/5 transition-all group relative">
+                              <input type="file" multiple accept="audio/*" onChange={handleAudioFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+                              <div className="p-4 bg-slate-800 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all"><FileAudio size={32} /></div>
+                              <h4 className="mt-6 font-bold text-lg text-slate-200 text-center">Batch Ingest Recorded Interviews</h4>
+                              <p className="text-xs text-slate-500 mt-2">Submit stakeholder sessions for automated requirement extraction</p>
+                            </label>
+                            {pendingAudioFiles.length > 0 && (
                                 <div className="space-y-4 bg-slate-900/50 p-6 rounded-3xl border border-slate-800 shadow-xl">
                                   <div className="flex items-center justify-between">
-                                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                      <Search size={12} /> Pending Queue ({pendingAudioFiles.length})
-                                    </h4>
-                                    <button onClick={() => setPendingAudioFiles([])} className="text-[10px] text-red-400 hover:text-red-300 font-bold uppercase tracking-wider">Clear Workspace</button>
+                                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Pending Recordings ({pendingAudioFiles.length})</h4>
+                                    <button onClick={() => setPendingAudioFiles([])} className="text-[10px] text-red-400 hover:text-red-300 font-bold uppercase">Clear All</button>
                                   </div>
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {pendingAudioFiles.map((f, i) => (
-                                      <div key={i} className="flex items-center justify-between bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50 backdrop-blur-sm group">
+                                      <div key={i} className="flex items-center justify-between bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50 backdrop-blur-sm">
                                         <div className="flex items-center gap-3 min-w-0">
-                                          <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
-                                            <FileAudio size={14} />
-                                          </div>
-                                          <div className="flex flex-col min-w-0">
-                                            <span className="text-xs truncate text-slate-200 font-bold">{f.name}</span>
-                                            <span className="text-[9px] text-slate-600">{(f.size/1024/1024).toFixed(1)}MB</span>
-                                          </div>
+                                          <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg"><FileAudio size={14} /></div>
+                                          <span className="text-xs truncate text-slate-200 font-bold">{f.name}</span>
                                         </div>
                                         <button onClick={() => removeAudioFile(i)} className="text-slate-600 hover:text-red-400 transition-colors p-2"><Trash2 size={16} /></button>
                                       </div>
                                     ))}
                                   </div>
-                                  <button onClick={startBatchAudioAnalysis} className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 transition-colors rounded-2xl font-bold flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(79,70,229,0.3)]">
-                                    <Sparkles size={20} /> Process Interview Bundle
-                                  </button>
+                                  <button onClick={startBatchAudioAnalysis} className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg"><Sparkles size={20} /> Process Interview Bundle</button>
                                 </div>
                               )}
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-8">
-                              {state.audioUploadResults?.map((res, i) => (
-                                <div key={i} className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-4 border-l-4 border-l-indigo-500">
-                                  <div className="bg-slate-800/40 px-6 py-4 flex items-center justify-between border-b border-slate-700/50">
-                                    <div className="flex items-center gap-3">
-                                      <div className="p-1.5 bg-indigo-500/20 rounded-lg text-indigo-400"><CheckCircle2 size={16} /></div>
-                                      <span className="text-sm font-bold text-slate-200">{res.fileName}</span>
-                                    </div>
-                                    <span className="text-[9px] bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/20 font-bold uppercase tracking-widest">Synthesis Complete</span>
-                                  </div>
-                                  <div className="p-8 space-y-8">
-                                    <div className="space-y-4">
-                                      <h5 className="text-[10px] font-bold text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-2"><ListTodo size={14} /> Neural User Stories</h5>
-                                      <div className="grid grid-cols-1 gap-3">
-                                        {res.userStories.map((story, si) => (
-                                          <div key={si} className="text-xs bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50 text-slate-300 leading-relaxed font-medium">"{story}"</div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                      <div className="space-y-4">
-                                        <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Elicited Requirements</h5>
-                                        <ul className="text-xs list-disc pl-5 space-y-2 text-slate-400 font-medium">
-                                          {res.requirements.map((r, ri) => <li key={ri} className="pl-1 marker:text-indigo-500">{r}</li>)}
-                                        </ul>
-                                      </div>
-                                      <div className="space-y-4">
-                                        <h5 className="text-[10px] font-bold text-red-400/70 uppercase tracking-widest">Critical Constraints</h5>
-                                        <ul className="text-xs list-disc pl-5 space-y-2 text-slate-400 font-medium">
-                                          {res.painPoints.map((p, pi) => <li key={pi} className="text-red-300/60 pl-1 marker:text-red-500/50">{p}</li>)}
-                                        </ul>
-                                      </div>
-                                    </div>
-                                    <div className="pt-6 border-t border-slate-800">
-                                      <h5 className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest">Transcription Summary</h5>
-                                      <p className="text-[11px] text-slate-500 leading-relaxed font-mono bg-slate-900 p-4 rounded-xl border border-slate-800/50 italic opacity-80">{res.transcription}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
                           </div>
                         )}
                       </div>
@@ -740,17 +640,9 @@ const App: React.FC = () => {
                                 </p>
                               </div>
                            </div>
-                           <div className="p-6 bg-indigo-600/5 border border-indigo-500/20 rounded-3xl shadow-inner relative overflow-hidden group">
-                              <div className="absolute -right-4 -top-4 opacity-5 group-hover:opacity-10 transition-opacity"><Sparkles size={60} /></div>
-                              <p className="text-[11px] text-slate-400 leading-relaxed font-medium relative">
-                                <strong className="text-indigo-400 block mb-1">Agent Strategy:</strong> Structural verification will leverage Gemini 3 Pro reasoning to handle complex COBOL procedure logic and re-defined data structures.
-                              </p>
-                           </div>
-                           
-                           {/* neural log feed */}
                            <div className="space-y-3">
                              <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest ml-1">Live Agent Log</span>
-                             <div className="bg-black/40 border border-slate-800 rounded-2xl p-4 h-32 overflow-hidden flex flex-col-reverse gap-2 shadow-inner">
+                             <div className="bg-black/40 border border-slate-800 rounded-2xl p-4 h-48 overflow-hidden flex flex-col-reverse gap-2 shadow-inner">
                                {logMessages.length === 0 ? (
                                  <span className="text-[10px] text-slate-700 italic">No activity recorded...</span>
                                ) : (
@@ -773,19 +665,27 @@ const App: React.FC = () => {
               {state.analysisResults && state.step === 'ANALYSIS' && (
                 <div className="space-y-10 animate-in fade-in">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-3xl font-bold flex items-center gap-3 tracking-tight"><Cpu className="text-indigo-400" /> Static Analysis Intelligence</h2>
+                    <h2 className="text-3xl font-bold flex items-center gap-3 tracking-tight"><Cpu className="text-indigo-400" /> Neural Analysis Node</h2>
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{selectedSample?.name}</span>
                   </div>
                   <AnalysisDisplay analysis={state.analysisResults} />
-                  <div className="flex justify-center pt-10"><button onClick={() => setState(prev => ({ ...prev, step: 'TRANSFORMATION' }))} className="px-12 py-5 bg-indigo-600 rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-2xl shadow-indigo-500/30 flex items-center gap-3 transform hover:-translate-y-1 active:scale-95">Synthesize Microservice <ArrowRight size={20} /></button></div>
+                  <div className="flex justify-center pt-10">
+                    <button onClick={initializeSynthesis} className="px-12 py-5 bg-indigo-600 rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-2xl flex items-center gap-3 transform hover:-translate-y-1 active:scale-95">
+                      Initialize Code Synthesis <ArrowRight size={20} />
+                    </button>
+                  </div>
                 </div>
               )}
 
               {state.modernizedCode && state.step === 'TRANSFORMATION' && (
                 <div className="space-y-10 animate-in fade-in">
-                  <h2 className="text-3xl font-bold flex items-center gap-3 tracking-tight"><Code2 className="text-indigo-400" /> Cloud-Native Synthesis</h2>
+                  <h2 className="text-3xl font-bold flex items-center gap-3 tracking-tight"><Code2 className="text-indigo-400" /> Synthesized Microservices</h2>
                   <CodeDisplay files={state.modernizedCode.files} type="modern" />
-                  <div className="flex justify-center pt-10"><button onClick={() => setState(prev => ({ ...prev, step: 'DEPLOYMENT' }))} className="px-12 py-5 bg-indigo-600 rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-2xl shadow-indigo-500/30 flex items-center gap-3 transform hover:-translate-y-1 active:scale-95">Finalize Orchestration <ArrowRight size={20} /></button></div>
+                  <div className="flex justify-center pt-10">
+                    <button onClick={initializeInfrastructure} className="px-12 py-5 bg-indigo-600 rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-2xl flex items-center gap-3 transform hover:-translate-y-1 active:scale-95">
+                      Generate Cloud Infrastructure <ArrowRight size={20} />
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -797,18 +697,15 @@ const App: React.FC = () => {
                     { path: 'k8s-deployment.yaml', content: state.deploymentConfig.kubernetesYaml, language: 'yaml' }, 
                     { path: 'Helm-Guide.md', content: state.deploymentConfig.helmChartDescription, language: 'markdown' }
                   ]} />
-                  <div className="bg-gradient-to-br from-emerald-500/10 to-indigo-500/10 border border-emerald-500/20 rounded-3xl p-16 flex flex-col items-center text-center space-y-8 shadow-[0_20px_60px_rgba(16,185,129,0.1)] relative overflow-hidden">
-                    <div className="absolute -left-20 -top-20 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px]" />
-                    <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px]" />
-                    
+                  <div className="bg-gradient-to-br from-emerald-500/10 to-indigo-500/10 border border-emerald-500/20 rounded-3xl p-16 flex flex-col items-center text-center space-y-8 shadow-2xl">
                     <div className="p-6 bg-emerald-500/20 rounded-3xl shadow-[0_0_40px_rgba(16,185,129,0.3)] animate-bounce duration-[2000ms]">
                       <ShieldCheck size={56} className="text-emerald-400" />
                     </div>
-                    <div className="space-y-4 relative">
+                    <div className="space-y-4">
                       <h3 className="text-4xl font-bold text-white tracking-tight">Mainframe Decommissioned</h3>
-                      <p className="text-slate-400 text-lg max-w-xl mx-auto leading-relaxed font-medium">Business logic successfully extracted from COBOL and encapsulated in a high-performance Spring Boot 3 microservice architecture.</p>
+                      <p className="text-slate-400 text-lg max-w-xl mx-auto leading-relaxed font-medium">Business logic successfully extracted and modernized into a cloud-native Spring Boot service.</p>
                     </div>
-                    <button onClick={resetMigration} className="px-12 py-4 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-bold text-white flex items-center gap-3 transition-all transform active:scale-95 shadow-xl shadow-emerald-500/20 group">
+                    <button onClick={resetMigration} className="px-12 py-4 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-bold text-white flex items-center gap-3 transition-all transform active:scale-95 shadow-xl group">
                       Initialize Next Module <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                     </button>
                   </div>
@@ -820,46 +717,22 @@ const App: React.FC = () => {
       </main>
 
       <footer className="border-t border-slate-800 py-16 bg-slate-900/50 mt-20 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-5 pointer-events-none flex items-center justify-center">
-           <Database size={600} className="text-indigo-500 rotate-12" />
-        </div>
         <div className="max-w-7xl mx-auto px-4 text-center space-y-8 relative">
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em]">
-              Autonomous Migration Protocol v3.5
-            </p>
-            <span className="text-[10px] text-indigo-500/50 font-mono">Gemini 3 Pro // Native Multimodal Synthesis</span>
-          </div>
+          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em]">Autonomous Migration Protocol v3.6 // Neural Synthesis Engine</p>
           <div className="flex justify-center gap-10 text-[11px] font-bold text-slate-600">
             <span className="hover:text-indigo-400 transition-colors cursor-pointer uppercase tracking-widest">Compliance</span>
             <span className="hover:text-indigo-400 transition-colors cursor-pointer uppercase tracking-widest">System Audit</span>
-            <span className="hover:text-indigo-400 transition-colors cursor-pointer uppercase tracking-widest">Network Logic</span>
+            <span className="hover:text-indigo-400 transition-colors cursor-pointer uppercase tracking-widest">LLM Transparency</span>
           </div>
-          <p className="text-slate-700 text-[10px] max-w-lg mx-auto leading-relaxed">
-            This tool uses high-fidelity neural reasoning to interpret legacy mainframe logic. All generated code should be subjected to standard CI/CD regression testing before production deployment.
-          </p>
         </div>
       </footer>
       
       <style>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-          height: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #334155;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #475569;
-        }
+        @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
       `}</style>
     </div>
   );
