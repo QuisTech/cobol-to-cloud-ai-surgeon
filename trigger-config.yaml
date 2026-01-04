@@ -1,7 +1,0 @@
-name: cobol-auto-deploy
-github:
-  name: cobol-to-cloud-ai-surgeon
-  owner: QuisTech
-  push:
-    branch: main
-filename: cloudbuild.yaml
