@@ -11,8 +11,8 @@ const cleanJsonOutput = (text: string): string => {
   return text.replace(/```json\n?|```/g, "").trim();
 };
 
-export const analyzeUploadedAudio = async (base64Audio: string, mimeType: string, fileName: string): Promise<AudioUploadResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const analyzeUploadedAudio = async (base64Audio: string, mimeType: string, fileName: string, apiKey?: string): Promise<AudioUploadResult> => {
+  const ai = new GoogleGenAI({ apiKey: apiKey || process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: {
@@ -57,8 +57,8 @@ Return the result as a strict JSON object.`
   return { ...JSON.parse(cleanJsonOutput(text)), fileName };
 };
 
-export const analyzeSystemVideo = async (videoBase64: string, mimeType: string): Promise<VideoAnalysisResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const analyzeSystemVideo = async (videoBase64: string, mimeType: string, apiKey?: string): Promise<VideoAnalysisResult> => {
+  const ai = new GoogleGenAI({ apiKey: apiKey || process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: {
@@ -94,10 +94,10 @@ export const analyzeSystemVideo = async (videoBase64: string, mimeType: string):
   return JSON.parse(cleanJsonOutput(text));
 };
 
-export const analyzeCobolScreenshot = async (imageDataUrl: string): Promise<VisionAnalysisResult> => {
+export const analyzeCobolScreenshot = async (imageDataUrl: string, apiKey?: string): Promise<VisionAnalysisResult> => {
   const base64Data = imageDataUrl.split(',')[1];
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
+  const ai = new GoogleGenAI({ apiKey: apiKey || process.env.API_KEY });
+
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: {
@@ -144,12 +144,12 @@ export const analyzeCobolScreenshot = async (imageDataUrl: string): Promise<Visi
   return JSON.parse(cleanJsonOutput(text));
 };
 
-export const analyzeCobolCode = async (code: string): Promise<AnalysisResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const analyzeCobolCode = async (code: string, apiKey?: string): Promise<AnalysisResult> => {
+  const ai = new GoogleGenAI({ apiKey: apiKey || process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: { 
-      parts: [{ text: `Analyze the following COBOL code for bugs and logic. Output JSON.\n\nCOBOL Code:\n${code}` }] 
+    contents: {
+      parts: [{ text: `Analyze the following COBOL code for bugs and logic. Output JSON.\n\nCOBOL Code:\n${code}` }]
     },
     config: {
       systemInstruction: SYSTEM_PROMPT,
@@ -186,12 +186,12 @@ export const analyzeCobolCode = async (code: string): Promise<AnalysisResult> =>
   return JSON.parse(cleanJsonOutput(text));
 };
 
-export const transformToSpringBoot = async (code: string, analysis: AnalysisResult): Promise<ModernizedCode> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const transformToSpringBoot = async (code: string, analysis: AnalysisResult, apiKey?: string): Promise<ModernizedCode> => {
+  const ai = new GoogleGenAI({ apiKey: apiKey || process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: { 
-      parts: [{ text: `Modernize COBOL to Spring Boot. Output JSON array of files.\n\nCode:\n${code}\n\nAnalysis:\n${JSON.stringify(analysis)}` }] 
+    contents: {
+      parts: [{ text: `Modernize COBOL to Spring Boot. Output JSON array of files.\n\nCode:\n${code}\n\nAnalysis:\n${JSON.stringify(analysis)}` }]
     },
     config: {
       systemInstruction: SYSTEM_PROMPT,
@@ -223,12 +223,12 @@ export const transformToSpringBoot = async (code: string, analysis: AnalysisResu
   return JSON.parse(cleanJsonOutput(text));
 };
 
-export const generateCloudConfig = async (modernizedCode: ModernizedCode): Promise<DeploymentConfig> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const generateCloudConfig = async (modernizedCode: ModernizedCode, apiKey?: string): Promise<DeploymentConfig> => {
+  const ai = new GoogleGenAI({ apiKey: apiKey || process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: { 
-      parts: [{ text: `Generate Docker/K8s for these files. Output JSON.` }] 
+    contents: {
+      parts: [{ text: `Generate Docker/K8s for these files. Output JSON.` }]
     },
     config: {
       systemInstruction: SYSTEM_PROMPT,
