@@ -1,6 +1,7 @@
 export interface MigrationState {
   step: 'INPUT' | 'ANALYSIS' | 'TRANSFORMATION' | 'DEPLOYMENT';
   isProcessing: boolean;
+  isAutonomous?: boolean;
   cobolCode: string;
   analysisResults?: AnalysisResult;
   modernizedCode?: ModernizedCode;
