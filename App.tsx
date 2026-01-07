@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Database, 
@@ -167,6 +168,38 @@ const App: React.FC = () => {
       const analysis = await analyzeCobolCode(state.cobolCode);
       setState(prev => ({ ...prev, analysisResults: analysis, isProcessing: false, step: 'ANALYSIS' }));
       addLog('Logic graph synchronized.');
+    } catch (err: any) {
+      setState(prev => ({ ...prev, isProcessing: false, error: handleApiError(err) }));
+    }
+  };
+
+  const runAutoPilot = async () => {
+    if (!state.cobolCode.trim()) {
+      setState(prev => ({ ...prev, error: "Source Input Required: Please paste COBOL code or upload a .CBL file before initiating the migration cycle." }));
+      return;
+    }
+    if (state.isProcessing) return;
+
+    try {
+      await ensureApiKey();
+      
+      // Step 1: Analysis
+      setState(prev => ({ ...prev, isProcessing: true, error: undefined }));
+      addLog('Auto-Pilot: Logic extraction (Gemini 3 Pro)...');
+      const analysis = await analyzeCobolCode(state.cobolCode);
+      setState(prev => ({ ...prev, analysisResults: analysis, step: 'ANALYSIS' }));
+      addLog('Auto-Pilot: Logic extracted. Synthesizing...');
+
+      // Step 2: Synthesis
+      const modernized = await transformToSpringBoot(state.cobolCode, analysis);
+      setState(prev => ({ ...prev, modernizedCode: modernized, step: 'TRANSFORMATION' }));
+      addLog('Auto-Pilot: Code synthesized. Generating Infra...');
+
+      // Step 3: Deployment
+      const config = await generateCloudConfig(modernized);
+      setState(prev => ({ ...prev, deploymentConfig: config, step: 'DEPLOYMENT', isProcessing: false }));
+      addLog('Auto-Pilot: Migration Complete.');
+
     } catch (err: any) {
       setState(prev => ({ ...prev, isProcessing: false, error: handleApiError(err) }));
     }
@@ -416,7 +449,6 @@ const App: React.FC = () => {
                           setSelectedSampleId(val);
                           const s = SAMPLE_PROGRAMS.find(p => p.id === val);
                           if (s) {
-                            // If it's custom, we clear the code editor to allow pasting/uploading
                             if (s.id === 'custom') {
                               setState(prev => ({ ...prev, cobolCode: '' }));
                               addLog('Custom workspace initialized. Paste or upload your source.');
@@ -431,12 +463,23 @@ const App: React.FC = () => {
                         {SAMPLE_PROGRAMS.map(s => <option key={s.id} value={s.id}>{s.name} — {s.feature}</option>)}
                       </select>
                     </div>
-                    <button 
-                      onClick={startMigration} 
-                      className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 px-12 rounded-2xl shadow-[0_10px_30px_rgba(79,70,229,0.4)] flex items-center justify-center gap-3 transition-all transform active:scale-95 group"
-                    >
-                      Start Neural Cycle <Zap size={20} className="group-hover:text-yellow-400 transition-colors" />
-                    </button>
+                    
+                    <div className="flex gap-4 w-full md:w-auto">
+                      <button 
+                        onClick={startMigration} 
+                        disabled={state.isProcessing}
+                        className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-5 px-8 rounded-2xl shadow-[0_10px_30px_rgba(79,70,229,0.4)] flex items-center justify-center gap-3 transition-all transform active:scale-95 group"
+                      >
+                        Start <Zap size={20} className="group-hover:text-yellow-400 transition-colors" />
+                      </button>
+                      <button 
+                        onClick={runAutoPilot} 
+                        disabled={state.isProcessing}
+                        className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-5 px-8 rounded-2xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] flex items-center justify-center gap-3 transition-all transform active:scale-95 group"
+                      >
+                        Auto-Pilot <Rocket size={20} className="group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
