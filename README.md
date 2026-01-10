@@ -24,6 +24,40 @@ CloudModern.AI is an end-to-end autonomous agent that facilitates the migration 
 - **Synthesis**: Generates clean, object-oriented Spring Boot 3.4 code using modern Java 21 features (Records, Pattern Matching, Virtual Threads), moving away from 1:1 procedural translation.
 - **Orchestration**: Automatically creates Dockerfiles, Kubernetes manifests, and Helm charts to deploy the modernized service immediately.
 
+## Architectural Structure
+
+The project follows a clean, component-driven architecture designed for maintainability and direct integration with Google GenAI SDKs.
+
+```text
+.
+├── components/                 # UI Presentation Layer
+│   ├── AnalysisDisplay.tsx     # Logic graphs, bug registry & complexity charts
+│   ├── CodeDisplay.tsx         # IDE-like code viewer with diffing & copy capabilities
+│   └── VisionAnalysisDisplay.tsx # Visualizes OCR data & inferred schema maps
+├── services/                   # Logic Layer
+│   └── geminiService.ts        # Direct-to-LLM orchestration & strict schema enforcement
+├── App.tsx                     # Main Application Controller & State Machine
+├── constants.ts                # COBOL Samples, System Prompts & Configuration
+├── types.ts                    # TypeScript Interfaces ensuring AI/UI type safety
+├── index.tsx                   # React Entry Point
+├── index.html                  # HTML Shell with Tailwind & Font setup
+└── metadata.json               # Project capability manifests
+```
+
+## Key Architectural Decisions
+
+1.  **Browser-Native Orchestration**: We purposefully avoided backend middleware. The application interacts directly with Google's GenAI APIs from the client (`services/geminiService.ts`). This architecture reduces latency for Real-time Audio features and simplifies deployment to static hosts, leveraging the browser's `AudioContext` for signal processing.
+
+2.  **Strict Schema Engineering**: All AI interactions (Vision, Code, Video) are forced into strict JSON schemas defined in `types.ts` and enforced via the SDK. We do not parse free-text markdown; we enforce structure to ensure the UI components (like charts and graphs) always render valid data.
+
+3.  **Split-Model Strategy**:
+    *   **Logic & Reasoning**: We utilize `gemini-3-pro-preview` with **Thinking Config** enabled for tasks requiring deep code analysis and synthesis. This allows the model to "plan" the refactoring before writing code.
+    *   **Perception & Speed**: We use `gemini-3-flash-preview` for high-bandwidth tasks like Video analysis and Screen OCR to maximize context window efficiency and response speed.
+
+4.  **Raw PCM Audio Pipeline**: For the "Interview Node", we bypassed standard high-level media APIs in favor of raw PCM processing via `ScriptProcessorNode`. This aligns exactly with the Gemini Live API's binary protocol, ensuring <300ms latency for conversational turn-taking and preventing audio codec mismatches.
+
+5.  **State-Driven UX**: The app implements a finite state machine (`MigrationState`) in `App.tsx`. The user cannot proceed to "Transformation" without a valid "Analysis" artifact. This ensures the AI has "reasoned" before it attempts to "code", reducing hallucination rates in the generated Java output.
+
 ## How we built it
 
 We built CloudModern.AI as a high-performance React application powered by the Google GenAI SDK.
