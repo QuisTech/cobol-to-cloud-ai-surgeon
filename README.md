@@ -1,5 +1,6 @@
 # CloudModern.AI: Autonomous Legacy Modernization Agent
 <img width="1366" height="768" alt="Screenshot (165)" src="https://github.com/user-attachments/assets/cde9729a-f6d2-49e8-8d65-5c3395b828d2" />
+
 ## Inspiration
 
 The world runs on legacy code. Over 800 billion lines of COBOL still power the global financial, insurance, and government infrastructure. Yet, the experts who maintain these systems are retiring, creating a critical "skills gap" crisis. Manual migration is slow, error-prone, and often fails because documentation is missing or outdated. We were inspired to build CloudModern.AI to solve this not just by translating syntax, but by capturing the intent and context of legacy systems using the multi-modal capabilities of the Gemini era.
