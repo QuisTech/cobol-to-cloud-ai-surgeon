@@ -109,7 +109,7 @@ export const CBL0106_CODE = `       IDENTIFICATION DIVISION.
            WRITE PRINT-REC FROM HEADER-3.
            WRITE PRINT-REC FROM HEADER-4.
            MOVE SPACES TO PRINT-REC.
-           MOVE 1 TO SUB1.
+           MOVE 0 TO SUB1.
        READ-NEXT-RECORD.
            PERFORM READ-RECORD
            PERFORM UNTIL LASTREC = 'Y'
@@ -130,18 +130,23 @@ export const CBL0106_CODE = `       IDENTIFICATION DIVISION.
            END-READ.
        IS-OVERLIMIT.
            IF ACCT-LIMIT < ACCT-BALANCE THEN
+               ADD 1 TO SUB1
+               IF SUB1 > OVERLIMIT-MAX THEN
+                   DISPLAY 'OVERFLOW TABLE OVERLIMIT'
+                   MOVE 1000 TO RETURN-CODE
+                   STOP RUN
+               END-IF
                MOVE ACCT-LIMIT TO OL-ACCT-LIMIT(SUB1)
                MOVE ACCT-BALANCE TO OL-ACCT-BALANCE(SUB1)
                MOVE LAST-NAME TO OL-LASTNAME(SUB1)
                MOVE FIRST-NAME TO OL-FIRSTNAME(SUB1)
             END-IF.
-            ADD 1 TO SUB1.
        IS-STATE-VIRGINIA.
            IF USA-STATE = 'Virginia' THEN
               ADD 1 TO VIRGINIA-CLIENTS
            END-IF.
        WRITE-OVERLIMIT.
-           IF SUB1 = 1 THEN
+           IF SUB1 = 0 THEN
                MOVE OVERLIMIT-STATUS TO PRINT-REC
                WRITE PRINT-REC
            ELSE
@@ -481,3 +486,14 @@ When modernizing:
 When generating deployment:
 1. Provide a multi-stage Dockerfile optimized for Java 21.
 2. Provide K8s Deployment and Service YAMLs.`;
+
+// Data URIs for Hackathon Samples - lightweight placeholders to prove functionality without external dependencies.
+// These are minimal valid assets.
+
+// 1. Vision: We use a programmatic Canvas in App.tsx to generate high-fidelity Green Screens.
+
+// 2. Audio: A tiny valid WAV file (Base64). It's a simple beep/tone, but valid for upload testing.
+export const SAMPLE_AUDIO_BASE64 = `UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAEA`; 
+
+// 3. Video: A tiny valid MP4 file (Base64). 1 frame, black. Sufficient for "upload" testing logic flow.
+export const SAMPLE_VIDEO_BASE64 = `AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAs1tZGF0AAACrgYF//+q3EXpvebZS7LhEUFq/w==`;

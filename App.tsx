@@ -31,11 +31,14 @@ import {
   Files,
   FileUp,
   FileDown,
-  Eraser
+  Eraser,
+  FlaskConical,
+  MonitorPlay,
+  Waves
 } from 'lucide-react';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { MigrationState, AudioUploadResult } from './types';
-import { SAMPLE_PROGRAMS, INITIAL_COBOL_EXAMPLE } from './constants';
+import { SAMPLE_PROGRAMS, INITIAL_COBOL_EXAMPLE, SAMPLE_AUDIO_BASE64, SAMPLE_VIDEO_BASE64 } from './constants';
 import { analyzeCobolCode, transformToSpringBoot, generateCloudConfig, analyzeCobolScreenshot, analyzeSystemVideo, analyzeUploadedAudio } from './services/geminiService';
 import AnalysisDisplay from './components/AnalysisDisplay';
 import CodeDisplay from './components/CodeDisplay';
@@ -153,6 +156,137 @@ const App: React.FC = () => {
     setLogMessages([]);
     setStatusText('');
     setSelectedSampleId(SAMPLE_PROGRAMS[0].id);
+  };
+
+  const generateSampleScreenshot = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 768;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      // Retro Mainframe Style
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, 1024, 768);
+      
+      ctx.font = 'bold 24px "Courier New", monospace';
+      ctx.fillStyle = '#00FF00';
+      
+      // Header
+      ctx.fillText('CICS V4.1  --  PAYROLL MASTER SYSTEM  --  DATE: 2023-11-14  TIME: 09:42:11', 50, 50);
+      ctx.fillStyle = '#00CC00';
+      ctx.fillText('--------------------------------------------------------------------------------', 50, 80);
+      
+      // Fields
+      const drawField = (label: string, value: string, y: number, isInput = false) => {
+        ctx.fillStyle = '#00FF00';
+        ctx.fillText(label, 80, y);
+        ctx.fillStyle = isInput ? '#FFFFFF' : '#00AA00';
+        // Simulate an underscore underline for inputs
+        if(isInput) {
+            ctx.fillStyle = '#333333';
+            ctx.fillRect(300, y - 24, 400, 30);
+            ctx.fillStyle = '#FFFFFF';
+        }
+        ctx.fillText(value, 310, y);
+      };
+
+      drawField('EMPLOYEE ID:', '88492-AX', 150, true);
+      drawField('DEPT CODE:', 'FIN-02', 200, true);
+      drawField('PAY GRADE:', 'L-4', 250, false);
+      drawField('GROSS SALARY:', '$84,500.00', 300, false);
+      drawField('YTD EARNINGS:', '$68,200.50', 350, false);
+      drawField('TAX BRACKET:', 'CA-04', 400, false);
+      drawField('LAST PROC:', '2023-10-30', 450, false);
+      drawField('ERROR CODE:', 'E-99 OVERFLOW', 550); // Intentionally adding an error for analysis
+      
+      // Footer
+      ctx.fillStyle = '#00FF00';
+      ctx.fillText('MSG: CRITICAL BATCH FAILURE IN MODULE PY004', 80, 650);
+      ctx.fillStyle = '#FFFF00';
+      ctx.fillText('PF1=HELP  PF3=EXIT  PF5=REFRESH  PF9=SUBMIT_JOB', 80, 720);
+    }
+    setUploadedImage(canvas.toDataURL('image/jpeg'));
+    addLog('Generated High-Fidelity CICS Screen Sample.');
+  };
+
+  const loadSampleAudio = () => {
+    // Uses a placeholder valid WAV header base64 to allow end-to-end testing
+    const byteCharacters = atob(SAMPLE_AUDIO_BASE64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const file = new File([byteArray], "Stakeholder_Interview_Sample.wav", { type: "audio/wav" });
+    setPendingAudioFiles([file]);
+    addLog('Sample Interview audio loaded into staging.');
+  };
+
+  const generateSampleVideo = async () => {
+    addLog('Generating synthetic behavioral video...');
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Use a 30fps stream
+    const stream = canvas.captureStream(30);
+    const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    const chunks: Blob[] = [];
+    
+    mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+    mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+             const base64 = (reader.result as string).split(',')[1];
+             setUploadedVideo({
+                 data: base64, 
+                 type: 'video/webm', 
+                 name: 'simulated_mainframe_session.webm'
+             });
+             addLog('Synthetic video sample ready for analysis.');
+        };
+        reader.readAsDataURL(blob);
+    };
+
+    mediaRecorder.start();
+
+    // Animate a simple login flow
+    let frame = 0;
+    const maxFrames = 90; // 3 seconds at 30fps
+    
+    const animate = () => {
+        if (frame >= maxFrames) {
+            mediaRecorder.stop();
+            return;
+        }
+        
+        // Background
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, 640, 480);
+        ctx.font = '20px monospace';
+        ctx.fillStyle = '#00FF00';
+        
+        ctx.fillText('SYSTEM LOGIN', 50, 50);
+        ctx.fillText('USER:', 50, 100);
+        
+        // Typing animation
+        const text = "ADMIN_ROOT";
+        const charCount = Math.floor(frame / 5);
+        ctx.fillText(text.substring(0, charCount) + (frame % 10 < 5 ? '_' : ''), 120, 100);
+
+        if (frame > 60) {
+            ctx.fillStyle = '#FF0000';
+            ctx.fillText('ACCESS DENIED: INVALID SECURITY LEVEL', 50, 200);
+        }
+        
+        frame++;
+        requestAnimationFrame(animate);
+    };
+    
+    animate();
   };
 
   const startMigration = async () => {
@@ -591,13 +725,27 @@ const App: React.FC = () => {
                           }}
                         />
                         {!uploadedImage ? (
-                          <div 
-                            onClick={() => imageInputRef.current?.click()}
-                            className="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 rounded-3xl p-20 cursor-pointer hover:border-emerald-500 hover:bg-emerald-500/5 transition-all group"
-                          >
-                            <Upload size={48} className="text-slate-500 group-hover:text-emerald-500 transition-all mb-4" />
-                            <h4 className="font-bold text-lg">Screenshot OCR Workspace</h4>
-                            <p className="text-xs text-slate-500 mt-2 text-center">Incorporate mainframe frames to auto-discover schema fields</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <div 
+                                onClick={() => imageInputRef.current?.click()}
+                                className="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 rounded-3xl p-10 cursor-pointer hover:border-emerald-500 hover:bg-emerald-500/5 transition-all group min-h-[300px]"
+                             >
+                                <Upload size={48} className="text-slate-500 group-hover:text-emerald-500 transition-all mb-4" />
+                                <h4 className="font-bold text-lg text-slate-300">Upload Screenshot</h4>
+                                <p className="text-xs text-slate-500 mt-2 text-center max-w-[200px]">Ingest 3270/5250 terminal screenshots for direct schema extraction</p>
+                             </div>
+
+                             <div 
+                                onClick={generateSampleScreenshot}
+                                className="flex flex-col items-center justify-center bg-gradient-to-br from-emerald-900/20 to-slate-800 border border-emerald-500/30 rounded-3xl p-10 cursor-pointer hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] transition-all group min-h-[300px] relative overflow-hidden"
+                             >
+                                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 pointer-events-none" />
+                                <div className="p-4 bg-emerald-500/20 rounded-full mb-6 group-hover:scale-110 transition-transform duration-500">
+                                   <FlaskConical size={32} className="text-emerald-400" />
+                                </div>
+                                <h4 className="font-bold text-lg text-emerald-100">Load CICS Sample</h4>
+                                <p className="text-xs text-emerald-400/60 mt-2 text-center max-w-[200px] font-medium">Generate a high-fidelity 'Payroll Master' BMS map for robust analysis testing</p>
+                             </div>
                           </div>
                         ) : (
                           <div className="space-y-6">
@@ -642,13 +790,27 @@ const App: React.FC = () => {
                           }}
                         />
                         {!uploadedVideo ? (
-                          <div 
-                            onClick={() => videoInputRef.current?.click()}
-                            className="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 rounded-3xl p-20 cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all group"
-                          >
-                            <Video size={48} className="text-slate-500 group-hover:text-purple-500 mb-4 transition-all" />
-                            <h4 className="font-bold text-lg text-center">Behavioral Walkthrough Scan</h4>
-                            <p className="text-xs text-slate-500 mt-2">Walkthrough analysis to detect state transitions</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div 
+                                onClick={() => videoInputRef.current?.click()}
+                                className="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 rounded-3xl p-10 cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all group min-h-[300px]"
+                             >
+                                <Video size={48} className="text-slate-500 group-hover:text-purple-500 transition-all mb-4" />
+                                <h4 className="font-bold text-lg text-slate-300">Upload Recording</h4>
+                                <p className="text-xs text-slate-500 mt-2 text-center max-w-[200px]">Process MP4/WebM user sessions to map state transitions</p>
+                             </div>
+
+                             <div 
+                                onClick={generateSampleVideo}
+                                className="flex flex-col items-center justify-center bg-gradient-to-br from-purple-900/20 to-slate-800 border border-purple-500/30 rounded-3xl p-10 cursor-pointer hover:shadow-[0_0_30px_rgba(168,85,247,0.2)] transition-all group min-h-[300px] relative overflow-hidden"
+                             >
+                                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 pointer-events-none" />
+                                <div className="p-4 bg-purple-500/20 rounded-full mb-6 group-hover:scale-110 transition-transform duration-500">
+                                   <MonitorPlay size={32} className="text-purple-400" />
+                                </div>
+                                <h4 className="font-bold text-lg text-purple-100">Simulate Session</h4>
+                                <p className="text-xs text-purple-400/60 mt-2 text-center max-w-[200px] font-medium">Generate a synthetic 'Login & Security Failure' workflow video for behavior scanning</p>
+                             </div>
                           </div>
                         ) : (
                           <div className="space-y-6">
@@ -729,16 +891,28 @@ const App: React.FC = () => {
                                  onChange={(e) => e.target.files && setPendingAudioFiles(Array.from(e.target.files))}
                                />
                                {pendingAudioFiles.length === 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                  <div 
                                    onClick={() => audioInputRef.current?.click()}
-                                   className="flex flex-col items-center justify-center p-20 border-2 border-dashed border-slate-800 rounded-3xl gap-6 shadow-inner hover:border-indigo-500 transition-all group cursor-pointer"
+                                   className="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 rounded-3xl p-10 cursor-pointer hover:border-indigo-500 hover:bg-indigo-500/5 transition-all group min-h-[300px]"
                                  >
-                                   <FileAudio size={64} className="text-indigo-400 group-hover:scale-110 transition-transform mb-4" />
-                                   <div className="text-center">
-                                     <h4 className="text-xl font-bold">Ingest Recorded Interviews</h4>
-                                     <p className="text-xs text-slate-500 mt-2 font-medium">Upload stakeholder sessions for batch requirement analysis</p>
-                                   </div>
+                                   <FileAudio size={48} className="text-slate-500 group-hover:text-indigo-400 transition-all mb-4" />
+                                   <h4 className="font-bold text-lg text-slate-300">Upload Interviews</h4>
+                                   <p className="text-xs text-slate-500 mt-2 text-center max-w-[200px]">Ingest stakeholder audio sessions for batch requirement analysis</p>
                                  </div>
+
+                                 <div 
+                                    onClick={loadSampleAudio}
+                                    className="flex flex-col items-center justify-center bg-gradient-to-br from-indigo-900/20 to-slate-800 border border-indigo-500/30 rounded-3xl p-10 cursor-pointer hover:shadow-[0_0_30px_rgba(99,102,241,0.2)] transition-all group min-h-[300px] relative overflow-hidden"
+                                 >
+                                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 pointer-events-none" />
+                                    <div className="p-4 bg-indigo-500/20 rounded-full mb-6 group-hover:scale-110 transition-transform duration-500">
+                                       <Waves size={32} className="text-indigo-400" />
+                                    </div>
+                                    <h4 className="font-bold text-lg text-indigo-100">Load Audio Specimen</h4>
+                                    <p className="text-xs text-indigo-400/60 mt-2 text-center max-w-[200px] font-medium">Inject a sample interview clip to demonstrate voice-to-requirement extraction</p>
+                                 </div>
+                                </div>
                                ) : (
                                  <div className="space-y-6 animate-in fade-in">
                                    <div className="bg-slate-800/50 rounded-3xl border border-indigo-500/30 p-8 shadow-2xl">
