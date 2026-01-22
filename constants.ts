@@ -497,3 +497,31 @@ export const SAMPLE_AUDIO_BASE64 = `UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAAB
 
 // 3. Video: A tiny valid MP4 file (Base64). 1 frame, black. Sufficient for "upload" testing logic flow.
 export const SAMPLE_VIDEO_BASE64 = `AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAs1tZGF0AAACrgYF//+q3EXpvebZS7LhEUFq/w==`;
+
+export const SAMPLE_INTERVIEW_SCRIPT = "We really need to migrate the batch processing module. It's written in COBOL 74, and the maintenance costs are skyrocketing. The main pain point is the 'Overlimit' calculation—it fails every time we have more than 50 transactions. We need this moved to a microservice by Q4, with strict validation.";
+
+export const SAMPLE_INTERVIEW_ANALYSIS = {
+  transcription: "We really need to migrate the batch processing module. It's written in COBOL 74, and the maintenance costs are skyrocketing. The main pain point is the 'Overlimit' calculation—it fails every time we have more than 50 transactions. We need this moved to a microservice by Q4, with strict validation.",
+  requirements: [
+    "Migrate Batch Processing Module from COBOL 74",
+    "Resolve 'Overlimit' calculation failures (>50 transactions)",
+    "Implement Microservices Architecture",
+    "Ensure Strict Input Validation",
+    "Deadline: Q4 Delivery"
+  ],
+  painPoints: [
+    "High Maintenance Costs",
+    "System instability with high volume (>50 txns)",
+    "Outdated tech stack (COBOL 74)"
+  ],
+  userStories: [
+    "As a System Admin, I want the batch process to handle >50 transactions without crashing.",
+    "As a CTO, I want to reduce maintenance overhead by moving to Java.",
+    "As a Compliance Officer, I need strict validation on all financial inputs."
+  ],
+  businessRules: [
+    "Transaction limit must support >50 concurrent items",
+    "Validation logic must run before processing",
+    "Microservice must respond within SLA"
+  ]
+};
