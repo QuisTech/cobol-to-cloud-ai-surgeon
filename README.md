@@ -1,5 +1,6 @@
 # CloudModern.AI: Autonomous Legacy Modernization Agent
-<img width="1366" height="768" alt="Screenshot (165)" src="https://github.com/user-attachments/assets/cde9729a-f6d2-49e8-8d65-5c3395b828d2" />
+
+<img width="1366" height="768" alt="Screenshot (170)" src="https://github.com/user-attachments/assets/0ae96e8c-c880-46e8-9649-67a183495f34" />
 
 ## Inspiration
 
