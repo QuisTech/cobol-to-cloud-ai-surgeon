@@ -175,6 +175,10 @@ const App: React.FC = () => {
     setLogMessages([]);
     setStatusText('');
     setSelectedSampleId(SAMPLE_PROGRAMS[0].id);
+    setAnalysisMode('code');
+    setAudioSubMode('live');
+    setIsInterviewing(false);
+    setTranscriptions([]);
   };
 
   const generateSampleScreenshot = () => {
