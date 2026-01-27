@@ -397,72 +397,72 @@ export const ACC_PROC_CODE = `       IDENTIFICATION DIVISION.
            STOP RUN.`;
 
 export interface SampleProgram {
-  id: string;
-  name: string;
-  code: string;
-  lines: number;
-  feature: string;
-  purpose: string;
-  complexity: 'Low' | 'Medium' | 'High' | 'Variable';
-  bugNote?: string;
+    id: string;
+    name: string;
+    code: string;
+    lines: number;
+    feature: string;
+    purpose: string;
+    complexity: 'Low' | 'Medium' | 'High' | 'Variable';
+    bugNote?: string;
 }
 
 export const SAMPLE_PROGRAMS: SampleProgram[] = [
-  {
-    id: 'acc-proc',
-    name: 'ACC-PROC',
-    code: ACC_PROC_CODE,
-    lines: 24,
-    feature: 'Simple Conditional Logic',
-    purpose: 'Banking transaction demo',
-    complexity: 'Low'
-  },
-  {
-    id: 'cbl0106',
-    name: 'CBL0106.cbl',
-    code: CBL0106_CODE,
-    lines: 154,
-    feature: 'ARRAY OVERFLOW BUG',
-    purpose: 'Financial report with overlimit detection',
-    complexity: 'Medium',
-    bugNote: 'BUG DETECTED: SUB1 increments unconditionally in IS-OVERLIMIT paragraph. If there are more than 5 overlimit accounts, it will overflow the OVERLIMIT array (OCCURS 5).'
-  },
-  {
-    id: 'cbl0106c',
-    name: 'CBL0106C.cbl',
-    code: CBL0106C_CODE,
-    lines: 165,
-    feature: 'Bounds Checking',
-    purpose: 'Corrected version of CBL0106',
-    complexity: 'Medium'
-  },
-  {
-    id: 'cbldb21',
-    name: 'CBLDB21.cbl',
-    code: CBLDB21_CODE,
-    lines: 24,
-    feature: 'SQL Integration',
-    purpose: 'SQL database cursor iteration example',
-    complexity: 'Medium'
-  },
-  {
-    id: 'deptpay',
-    name: 'DEPTPAY.CBL',
-    code: DEPTPAY_CODE,
-    lines: 18,
-    feature: 'Arithmetic & I/O',
-    purpose: 'Simple departmental payroll calculation',
-    complexity: 'Low'
-  },
-  {
-    id: 'custom',
-    name: 'Custom COBOL Program',
-    code: '',
-    lines: 0,
-    feature: 'Upload or Paste Custom Code',
-    purpose: 'Migrate your own COBOL programs',
-    complexity: 'Variable'
-  }
+    {
+        id: 'acc-proc',
+        name: 'ACC-PROC',
+        code: ACC_PROC_CODE,
+        lines: 24,
+        feature: 'Simple Conditional Logic',
+        purpose: 'Banking transaction demo',
+        complexity: 'Low'
+    },
+    {
+        id: 'cbl0106',
+        name: 'CBL0106.cbl',
+        code: CBL0106_CODE,
+        lines: 154,
+        feature: 'ARRAY OVERFLOW BUG',
+        purpose: 'Financial report with overlimit detection',
+        complexity: 'Medium',
+        bugNote: 'BUG DETECTED: SUB1 increments unconditionally in IS-OVERLIMIT paragraph. If there are more than 5 overlimit accounts, it will overflow the OVERLIMIT array (OCCURS 5).'
+    },
+    {
+        id: 'cbl0106c',
+        name: 'CBL0106C.cbl',
+        code: CBL0106C_CODE,
+        lines: 165,
+        feature: 'Bounds Checking',
+        purpose: 'Corrected version of CBL0106',
+        complexity: 'Medium'
+    },
+    {
+        id: 'cbldb21',
+        name: 'CBLDB21.cbl',
+        code: CBLDB21_CODE,
+        lines: 24,
+        feature: 'SQL Integration',
+        purpose: 'SQL database cursor iteration example',
+        complexity: 'Medium'
+    },
+    {
+        id: 'deptpay',
+        name: 'DEPTPAY.CBL',
+        code: DEPTPAY_CODE,
+        lines: 18,
+        feature: 'Arithmetic & I/O',
+        purpose: 'Simple departmental payroll calculation',
+        complexity: 'Low'
+    },
+    {
+        id: 'custom',
+        name: 'Custom COBOL Program',
+        code: '',
+        lines: 0,
+        feature: 'Upload or Paste Custom Code',
+        purpose: 'Migrate your own COBOL programs',
+        complexity: 'Variable'
+    }
 ];
 
 export const INITIAL_COBOL_EXAMPLE = ACC_PROC_CODE;
@@ -478,7 +478,7 @@ When analyzing:
 
 When modernizing:
 1. Follow SOLID principles and Clean Code.
-2. Use Spring Boot 3.x, Java 21 features (Records, Pattern Matching).
+2. Use Spring Boot 3.x, Java 21 features (Records, Pattern Matching, Virtual Threads).
 3. Map COBOL OCCURS to Java Collections (List/Set).
 4. Map File FD to Spring Data JPA/Repository patterns.
 5. Provide REST APIs that mirror COBOL procedure call entries.
@@ -493,7 +493,7 @@ When generating deployment:
 // 1. Vision: We use a programmatic Canvas in App.tsx to generate high-fidelity Green Screens.
 
 // 2. Audio: A tiny valid WAV file (Base64). It's a simple beep/tone, but valid for upload testing.
-export const SAMPLE_AUDIO_BASE64 = `UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAEA`; 
+export const SAMPLE_AUDIO_BASE64 = `UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAEA`;
 
 // 3. Video: A tiny valid MP4 file (Base64). 1 frame, black. Sufficient for "upload" testing logic flow.
 export const SAMPLE_VIDEO_BASE64 = `AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAs1tZGF0AAACrgYF//+q3EXpvebZS7LhEUFq/w==`;
@@ -501,27 +501,27 @@ export const SAMPLE_VIDEO_BASE64 = `AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEA
 export const SAMPLE_INTERVIEW_SCRIPT = "We really need to migrate the batch processing module. It's written in COBOL 74, and the maintenance costs are skyrocketing. The main pain point is the 'Overlimit' calculation—it fails every time we have more than 50 transactions. We need this moved to a microservice by Q4, with strict validation.";
 
 export const SAMPLE_INTERVIEW_ANALYSIS = {
-  transcription: "We really need to migrate the batch processing module. It's written in COBOL 74, and the maintenance costs are skyrocketing. The main pain point is the 'Overlimit' calculation—it fails every time we have more than 50 transactions. We need this moved to a microservice by Q4, with strict validation.",
-  requirements: [
-    "Migrate Batch Processing Module from COBOL 74",
-    "Resolve 'Overlimit' calculation failures (>50 transactions)",
-    "Implement Microservices Architecture",
-    "Ensure Strict Input Validation",
-    "Deadline: Q4 Delivery"
-  ],
-  painPoints: [
-    "High Maintenance Costs",
-    "System instability with high volume (>50 txns)",
-    "Outdated tech stack (COBOL 74)"
-  ],
-  userStories: [
-    "As a System Admin, I want the batch process to handle >50 transactions without crashing.",
-    "As a CTO, I want to reduce maintenance overhead by moving to Java.",
-    "As a Compliance Officer, I need strict validation on all financial inputs."
-  ],
-  businessRules: [
-    "Transaction limit must support >50 concurrent items",
-    "Validation logic must run before processing",
-    "Microservice must respond within SLA"
-  ]
+    transcription: "We really need to migrate the batch processing module. It's written in COBOL 74, and the maintenance costs are skyrocketing. The main pain point is the 'Overlimit' calculation—it fails every time we have more than 50 transactions. We need this moved to a microservice by Q4, with strict validation.",
+    requirements: [
+        "Migrate Batch Processing Module from COBOL 74",
+        "Resolve 'Overlimit' calculation failures (>50 transactions)",
+        "Implement Microservices Architecture",
+        "Ensure Strict Input Validation",
+        "Deadline: Q4 Delivery"
+    ],
+    painPoints: [
+        "High Maintenance Costs",
+        "System instability with high volume (>50 txns)",
+        "Outdated tech stack (COBOL 74)"
+    ],
+    userStories: [
+        "As a System Admin, I want the batch process to handle >50 transactions without crashing.",
+        "As a CTO, I want to reduce maintenance overhead by moving to Java.",
+        "As a Compliance Officer, I need strict validation on all financial inputs."
+    ],
+    businessRules: [
+        "Transaction limit must support >50 concurrent items",
+        "Validation logic must run before processing",
+        "Microservice must respond within SLA"
+    ]
 };
